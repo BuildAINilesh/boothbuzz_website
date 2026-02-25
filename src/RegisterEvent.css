@@ -1,0 +1,39 @@
+.register-container {
+    max-width: 800px;
+    margin: auto;
+    padding: 1rem;
+    font-family: sans-serif;
+  }
+  
+  section {
+    margin-bottom: 2rem;
+  }
+  
+  input, textarea, select {
+    width: 100%;
+    padding: 0.5rem;
+    margin-top: 0.5rem;
+    margin-bottom: 1rem;
+  }
+  
+  .plans button {
+    margin: 0.5rem 0.5rem 0 0;
+    padding: 0.6rem 1rem;
+    border: 1px solid #ccc;
+    background-color: #f7f7f7;
+    cursor: pointer;
+  }
+  
+  .plans button.selected {
+    border-color: #007bff;
+    background-color: #e0efff;
+  }
+  
+  .submit-button {
+    padding: 0.75rem 1.5rem;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    cursor: pointer;
+  }
+  

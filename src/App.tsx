@@ -1,0 +1,217 @@
+import React, { useState } from 'react';
+import { Phone, Mail, MapPin, Menu, X } from 'lucide-react';
+import { useUsers, useEvents, useVenues, useVendors, useExhibitors } from './hooks/useSupabaseData';
+import Gallery from './gallery';
+import { Events } from './events';
+import { Exhibitor } from './exhibitor';
+import { AuthProvider } from './contexts/AuthContext';
+import { BannerCarousel } from './components/BannerCarousel';
+import logo from './assets/new.jpg';
+
+const NAV_LINKS = ['Home', 'About', 'Gallery', 'Events', 'Exhibitors', 'Contact'];
+
+function App() {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState('home');
+
+  const { loading: usersLoading } = useUsers();
+  const { loading: eventsLoading } = useEvents();
+  const { loading: venuesLoading } = useVenues();
+  const { loading: vendorsLoading } = useVendors();
+  const { loading: exhibitorsLoading } = useExhibitors();
+  const loading = usersLoading || eventsLoading || venuesLoading || vendorsLoading || exhibitorsLoading;
+
+  const scrollToSection = (sectionId: string) => {
+    setActiveSection(sectionId);
+    const element = document.getElementById(sectionId);
+    if (element) element.scrollIntoView({ behavior: 'smooth' });
+    setIsMenuOpen(false);
+  };
+
+  return (
+    <AuthProvider>
+      <div className="min-h-screen bg-white">
+        <nav className="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur border-b border-slate-200/80">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center h-16">
+              <button onClick={() => scrollToSection('home')} className="flex items-center gap-2">
+                <img src={logo} alt="BoothBuzz" className="h-10 w-10 object-contain" />
+              </button>
+              <div className="hidden md:flex items-center gap-8">
+                {NAV_LINKS.map((item) => (
+                  <button
+                    key={item}
+                    onClick={() => scrollToSection(item.toLowerCase())}
+                    className={`text-sm font-medium transition-colors ${
+                      activeSection === item.toLowerCase()
+                        ? 'text-indigo-600'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    {item}
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                className="md:hidden p-2 text-slate-600"
+                aria-label="Toggle menu"
+              >
+                {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              </button>
+            </div>
+          </div>
+          {isMenuOpen && (
+            <div className="md:hidden border-t border-slate-200 bg-white px-4 py-3 space-y-1">
+              {NAV_LINKS.map((item) => (
+                <button
+                  key={item}
+                  onClick={() => scrollToSection(item.toLowerCase())}
+                  className={`block w-full text-left py-2 text-sm font-medium ${activeSection === item.toLowerCase() ? 'text-indigo-600' : 'text-slate-700 hover:text-slate-900'}`}
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
+          )}
+        </nav>
+
+        <main>
+          <section id="home" className="pt-0">
+            <BannerCarousel onScrollToSection={scrollToSection} />
+          </section>
+
+          <section id="about" className="py-24 bg-indigo-50/40">
+            <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="max-w-2xl">
+                <h2 className="text-3xl font-semibold tracking-tight text-slate-900">About BoothBuzz</h2>
+                <p className="mt-4 text-lg text-slate-600 leading-relaxed">
+                  We turn community spaces into exhibition venues where local talent gets seen. From food festivals to art and craft fairs, we help societies, malls, and local venues run events that connect people.
+                </p>
+              </div>
+              <div className="mt-16 grid sm:grid-cols-2 gap-8">
+                <div>
+                  <h3 className="text-lg font-medium text-slate-900">What we do</h3>
+                  <p className="mt-3 text-slate-600 leading-relaxed">
+                    End-to-end exhibition planning and execution, vendor coordination, and event marketing so your event reaches the right audience.
+                  </p>
+                </div>
+                <div>
+                  <h3 className="text-lg font-medium text-slate-900">By the numbers</h3>
+                  <div className="mt-3 flex gap-10">
+                    <div>
+                      <span className="text-2xl font-semibold text-indigo-600">50+</span>
+                      <span className="ml-1 text-slate-600">Exhibitions</span>
+                    </div>
+                    <div>
+                      <span className="text-2xl font-semibold text-indigo-600">25+</span>
+                      <span className="ml-1 text-slate-600">Societies</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section id="gallery" className="py-24 bg-violet-50/30">
+            <Gallery />
+          </section>
+
+          <section id="events" className="py-24 bg-white">
+            <Events />
+          </section>
+
+          <section id="exhibitors" className="py-24 bg-indigo-50/30">
+            <Exhibitor />
+          </section>
+
+          <section id="contact" className="py-24 bg-slate-900 text-white">
+            <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="max-w-2xl mb-16">
+                <h2 className="text-3xl font-semibold tracking-tight">Get in touch</h2>
+                <p className="mt-4 text-slate-300">
+                  Ready to host an exhibition? We’d love to hear from you.
+                </p>
+              </div>
+              <div className="grid lg:grid-cols-2 gap-16">
+                <div className="space-y-8">
+                  <div className="flex gap-4">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/10">
+                      <Phone className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <div className="font-medium">Phone</div>
+                      <a href="tel:+919922196059" className="text-slate-300 hover:text-white">+91 9922196059</a>
+                    </div>
+                  </div>
+                  <div className="flex gap-4">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/10">
+                      <Mail className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <div className="font-medium">Email</div>
+                      <a href="mailto:info@boothbuzz.in" className="text-slate-300 hover:text-white">info@boothbuzz.in</a>
+                    </div>
+                  </div>
+                  <div className="flex gap-4">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/10">
+                      <MapPin className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <div className="font-medium">Office</div>
+                      <div className="text-slate-300">
+                        4th Floor Varitech Building, Hinjewadi Phase 1, Pune 411057
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-slate-800/50 rounded-xl p-8">
+                  <h3 className="text-lg font-medium mb-6">Send a message</h3>
+                  <form className="space-y-4">
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      <input
+                        type="text"
+                        placeholder="Name"
+                        className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-slate-500"
+                      />
+                      <input
+                        type="email"
+                        placeholder="Email"
+                        className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-slate-500"
+                      />
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="Subject"
+                      className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-slate-500"
+                    />
+                    <textarea
+                      placeholder="Message"
+                      rows={4}
+                      className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-slate-500 resize-none"
+                    />
+                    <button
+                      type="submit"
+                      className="w-full py-3 bg-indigo-500 text-white font-medium rounded-lg hover:bg-indigo-600 transition-colors"
+                    >
+                      Send message
+                    </button>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <footer className="border-t border-slate-200 bg-indigo-50/20 py-10">
+            <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center gap-4">
+              <span className="font-medium text-indigo-600">BoothBuzz</span>
+              <span className="text-sm text-slate-500">© {new Date().getFullYear()} BoothBuzz. All rights reserved.</span>
+            </div>
+          </footer>
+        </main>
+      </div>
+    </AuthProvider>
+  );
+}
+
+export default App;
