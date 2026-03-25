@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { X, CheckCircle, AlertCircle, User, Mail, Phone, Building, MapPin, Calendar, Clock } from 'lucide-react';
+import { X, CheckCircle, Mail, Phone, Building, MapPin, Calendar, Clock, Users, Tag } from 'lucide-react';
 import { supabase } from '../supabase';
 import { AuthModal } from './AuthModal';
+import type { Event } from '../types';
+
+const DEFAULT_EVENT_IMAGE = 'https://images.pexels.com/photos/1099816/pexels-photo-1099816.jpeg?auto=compress&cs=tinysrgb&w=1200&h=600&fit=crop';
 
 interface EventRegistrationProps {
-  event: any;
+  event: Event & { image?: string | null; featured?: boolean };
   isOpen: boolean;
   onClose: () => void;
 }
@@ -261,38 +264,110 @@ export const EventRegistration: React.FC<EventRegistrationProps> = ({
 
   if (!isOpen) return null;
 
+  const eventImage = event.image || DEFAULT_EVENT_IMAGE;
+  const eventDate = event.date ? (typeof event.date === 'string' && event.date.includes('T') ? new Date(event.date).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }) : event.date) : '—';
+  const statusLabel = event.status ? String(event.status).charAt(0).toUpperCase() + String(event.status).slice(1) : '—';
+
   return (
     <>
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-slate-200 shadow-xl">
-          <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center">
-            <h2 className="text-xl font-semibold text-slate-900">Event registration</h2>
-            <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-500">
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[92vh] overflow-hidden border border-slate-200 shadow-2xl flex flex-col">
+          {/* Hero image */}
+          <div className="relative h-44 sm:h-52 flex-shrink-0 overflow-hidden bg-slate-200">
+            <img
+              src={eventImage}
+              alt=""
+              className="w-full h-full object-cover"
+              onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_EVENT_IMAGE; }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+            <div className="absolute bottom-0 left-0 right-0 p-5 text-white">
+              <h2 className="text-2xl sm:text-3xl font-bold tracking-tight drop-shadow-sm">{event.title}</h2>
+              {event.planType && (
+                <span className="inline-block mt-2 text-xs font-medium px-2.5 py-1 rounded-full bg-white/20 backdrop-blur">
+                  {event.planType}
+                </span>
+              )}
+            </div>
+            <button
+              onClick={onClose}
+              className="absolute top-3 right-3 p-2 rounded-full bg-black/40 text-white hover:bg-black/60 transition-colors"
+              aria-label="Close"
+            >
               <X className="h-5 w-5" />
             </button>
           </div>
-          <div className="p-6">
-            <div className="bg-indigo-50 p-4 rounded-lg mb-6 border border-indigo-200">
-              <h3 className="font-semibold text-slate-900 mb-2">{event.title}</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-slate-600">
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-indigo-500 shrink-0" />
-                  {event.date}
+
+          <div className="flex-1 overflow-y-auto">
+            {/* Event details */}
+            <div className="p-5 sm:p-6 border-b border-slate-100 bg-slate-50/50">
+              <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-4">Event details</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-white border border-slate-200/80">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-indigo-100 text-indigo-600">
+                    <Calendar className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-slate-500">Date</p>
+                    <p className="text-slate-900 font-medium">{eventDate}</p>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-indigo-500 shrink-0" />
-                  {event.time}
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-white border border-slate-200/80">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-indigo-100 text-indigo-600">
+                    <Clock className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-slate-500">Time</p>
+                    <p className="text-slate-900 font-medium">{event.time || '—'}</p>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <MapPin className="h-4 w-4 text-indigo-500 shrink-0" />
-                  {event.location}
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-white border border-slate-200/80">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-indigo-100 text-indigo-600">
+                    <MapPin className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-slate-500">Venue</p>
+                    <p className="text-slate-900 font-medium">{event.venue || '—'}</p>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Building className="h-4 w-4 text-indigo-500 shrink-0" />
-                  {event.type}
+                {event.city && (
+                  <div className="flex items-center gap-3 p-3 rounded-xl bg-white border border-slate-200/80">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-indigo-100 text-indigo-600">
+                      <Building className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-slate-500">City</p>
+                      <p className="text-slate-900 font-medium">{event.city}</p>
+                    </div>
+                  </div>
+                )}
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-white border border-slate-200/80">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
+                    <Users className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-slate-500">Capacity</p>
+                    <p className="text-slate-900 font-medium">{event.attendees ?? 0} / {event.maxCapacity ?? '—'} attendees</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-white border border-slate-200/80">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+                    <Tag className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-slate-500">Status</p>
+                    <p className="text-slate-900 font-medium">{statusLabel}</p>
+                  </div>
                 </div>
               </div>
+              {event.description && (
+                <div className="mt-4 p-4 rounded-xl bg-white border border-slate-200/80">
+                  <p className="text-sm text-slate-600 leading-relaxed">{event.description}</p>
+                </div>
+              )}
             </div>
+
+            <div className="p-5 sm:p-6">
 
             {/* Step 1: Check Exhibitor Registration */}
             {currentStep === 'check' && (
@@ -493,6 +568,7 @@ export const EventRegistration: React.FC<EventRegistrationProps> = ({
                 </button>
               </div>
             )}
+            </div>
           </div>
         </div>
       </div>

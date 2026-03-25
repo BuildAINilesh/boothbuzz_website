@@ -11,7 +11,7 @@ const DEFAULT_SLIDES = [
 const FALLBACK_IMAGE = 'https://images.pexels.com/photos/1099816/pexels-photo-1099816.jpeg?auto=compress&cs=tinysrgb&w=1600';
 
 export const BannerCarousel: React.FC<{ onScrollToSection?: (id: string) => void }> = ({ onScrollToSection }) => {
-  const { events, loading } = useEvents();
+  const { events, loading } = useEvents('upcoming');
   const [index, setIndex] = useState(0);
 
   const slides = (events?.length && events.some(e => e.image))

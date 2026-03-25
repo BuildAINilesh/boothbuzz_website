@@ -40,6 +40,9 @@ export interface User {
   createdBy?: string | null; // created_by from DB
   totalRevenue: number; // total_revenue from DB
   image?: string | null; // event_image from DB
+  sponsorName?: string | null; // sponsor_name from DB
+  sponsorLogoUrl?: string | null; // sponsor_logo_url from DB
+  sponsorRole?: string | null; // role from event_sponsors table
   created_at: string;
   updated_at: string;
 }
@@ -107,6 +110,7 @@ export interface EventRegistration {
     email?: string | null;
     phone?: string | null;
     category?: string | null;
+  subCategories?: string[] | null; // sub_category from DB
     city?: string | null;
     booth?: string | null;
     registrationDate?: string | null; // registration_date from DB

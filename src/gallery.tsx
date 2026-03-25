@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { MapPin, Star, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useEvents } from './hooks/useSupabaseData';
+import { AdSlot } from './components/AdSlot';
 
 const defaultImage = 'https://images.pexels.com/photos/1099816/pexels-photo-1099816.jpeg?auto=compress&cs=tinysrgb&w=400&h=250&fit=crop';
 
@@ -23,7 +24,7 @@ const TESTIMONIALS = [
 
 export const Gallery: React.FC<{ title?: string }> = () => {
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
-  const { events, loading, error } = useEvents();
+  const { events, loading, error } = useEvents('past');
 
   const scrollGallery = (dir: number) => {
     const el = document.getElementById('gallery-events-container');
@@ -50,6 +51,10 @@ export const Gallery: React.FC<{ title?: string }> = () => {
             {cat.label}
           </span>
         ))}
+      </div>
+
+      <div className="mb-6 py-2 px-1 flex justify-center">
+        <AdSlot slotId="gallery_middle" className="w-full max-w-[min(400px,100%)] flex justify-center" />
       </div>
 
       <div className="flex items-center justify-between gap-4 mb-6">

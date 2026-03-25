@@ -2,6 +2,78 @@ import { useState, useEffect } from 'react';
 import { supabase, isSupabaseConfigured } from '../supabase';
 import { User, Event, Venue, Vendor, Exhibitor } from '../types';
 
+/** First non-empty string from row (supports alternate DB column names). */
+function pickRawEventImage(row: Record<string, unknown>): string | null {
+  const keys = [
+    'event_image_url',
+    'event_image',
+    'image_url',
+    'cover_image',
+    'image',
+    'poster_url',
+    'banner_url',
+  ] as const;
+  for (const k of keys) {
+    const v = row[k];
+    if (v == null) continue;
+    const s = String(v).trim();
+    if (s) return s;
+  }
+  return null;
+}
+
+/**
+ * Full URL for <img src>; handles http(s) values and Supabase Storage paths.
+ * Paths may be `bucket/object/key` or a single key under default public bucket.
+ */
+function resolveEventImageForDisplay(raw: string | null): string | null {
+  if (!raw) return null;
+  const s = raw.trim();
+  if (!s) return null;
+  if (/^https?:\/\//i.test(s) || s.startsWith('//') || s.startsWith('data:')) return s;
+
+  const slash = s.indexOf('/');
+  if (slash > 0 && !s.includes('://')) {
+    const maybeBucket = s.slice(0, slash);
+    const objectPath = s.slice(slash + 1);
+    if (/^[a-z0-9_-]+$/i.test(maybeBucket) && objectPath.length > 0) {
+      return supabase.storage.from(maybeBucket).getPublicUrl(objectPath).data.publicUrl;
+    }
+  }
+
+  return supabase.storage.from('exhibitor-images').getPublicUrl(s).data.publicUrl;
+}
+
+function mapEventImageFromRow(row: Record<string, unknown>): string | null {
+  return resolveEventImageForDisplay(pickRawEventImage(row));
+}
+
+function normalizeSubCategories(raw: unknown): string[] | null {
+  if (raw == null) return null;
+  if (Array.isArray(raw)) {
+    const cleaned = raw.map((v) => String(v).trim()).filter(Boolean);
+    return cleaned.length ? cleaned : null;
+  }
+  const text = String(raw).trim();
+  if (!text) return null;
+  if (text.startsWith('[') && text.endsWith(']')) {
+    try {
+      const parsed = JSON.parse(text);
+      if (Array.isArray(parsed)) {
+        const cleaned = parsed.map((v) => String(v).trim()).filter(Boolean);
+        return cleaned.length ? cleaned : null;
+      }
+    } catch {
+      // Fall through to comma-split parsing.
+    }
+  }
+  const split = text
+    .split(',')
+    .map((v) => v.trim())
+    .filter(Boolean);
+  return split.length ? split : null;
+}
+
 // Generic hook for fetching data from Supabase
 export function useSupabaseData<T>(
   table: string,
@@ -75,33 +147,199 @@ export const useUsers = () => {
   return { users: data, loading, error, refetch };
 };
 
+/**
+ * Public site: draft / cancelled never shown.
+ * - `upcoming`: published + ongoing (Upcoming events + hero)
+ * - `past`: completed only (Past events / gallery)
+ * - `visible`: any showable status (e.g. app-wide loading gate)
+ */
+export type EventsDisplayFilter = 'upcoming' | 'past' | 'visible';
+
 /** Events from Supabase (same DB as Exhibitors). */
-export const useEvents = () => {
-  const { data, loading, error, refetch } = useSupabaseData<any>('events', '*', [],
-    { order: { column: 'event_date', ascending: false } });
+export const useEvents = (displayFilter: EventsDisplayFilter = 'visible') => {
+  const [events, setEvents] = useState<Event[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const events: Event[] = data.map((row: any) => ({
-    id: row.id,
-    title: row.title ?? '',
-    description: row.description ?? null,
-    date: row.event_date ?? '',
-    time: row.event_time ?? '',
-    venue: row.venue_name ?? '',
-    city: row.city ?? null,
-    status: row.status ?? 'draft',
-    attendees: row.attendees ?? 0,
-    maxCapacity: row.max_capacity ?? 0,
-    planType: row.plan_type ?? null,
-    vendors: (row.vendor_ids ?? []).map((id: string) => String(id)),
-    venueId: row.venue_id ?? null,
-    createdBy: row.created_by ?? null,
-    totalRevenue: Number(row.total_revenue ?? 0),
-    image: row.event_image_url ?? null,
-    created_at: row.created_at ?? '',
-    updated_at: row.updated_at ?? '',
-  }));
+  const fetchEvents = async () => {
+    if (!isSupabaseConfigured()) {
+      setError('Supabase is not configured. Please check your environment variables.');
+      setLoading(false);
+      return;
+    }
 
-  return { events, loading, error, refetch };
+    try {
+      setLoading(true);
+      setError(null);
+
+      let query = supabase.from('events').select('*');
+      if (displayFilter === 'upcoming') {
+        query = query.in('status', ['published', 'ongoing']);
+      } else if (displayFilter === 'past') {
+        query = query.eq('status', 'completed');
+      } else {
+        query = query.in('status', ['published', 'ongoing', 'completed']);
+      }
+
+      const orderAscending = displayFilter === 'upcoming';
+      const { data: eventRows, error: eventError } = await query.order('event_date', {
+        ascending: orderAscending,
+      });
+
+      if (eventError) throw eventError;
+
+      const sponsorByEventId = new Map<string, { name: string | null; logo: string | null; role: string | null }>();
+
+      const normKey = (v: unknown) => {
+        if (v == null || v === '') return '';
+        return String(v).trim().toLowerCase();
+      };
+
+      const rankRole = (role: string | null | undefined) => {
+        const normalized = (role ?? '').toLowerCase().trim();
+        if (normalized === 'title' || normalized === 'title sponsor') return 0;
+        if (normalized === 'co-sponsor' || normalized === 'co sponsor' || normalized === 'co_sponsor') return 1;
+        return 2;
+      };
+
+      const sponsorFkFromRow = (row: Record<string, unknown>) =>
+        row.sponsor_id ?? row.sponsors_id ?? row.sponsor ?? null;
+
+      const resolveSponsorDisplay = (s: Record<string, unknown>) => {
+        const name =
+          (s.company_name as string | null | undefined) ??
+          (s.name as string | null | undefined) ??
+          (s.sponsor_name as string | null | undefined) ??
+          (s.title as string | null | undefined) ??
+          null;
+        const logo =
+          (s.logo_url as string | null | undefined) ??
+          (s.logo as string | null | undefined) ??
+          (s.image_url as string | null | undefined) ??
+          null;
+        return { name: name?.trim() || null, logo: logo?.trim() || null };
+      };
+
+      // Load mappings from both table names (merge — avoids picking wrong table when one is empty).
+      const eventSponsorRows: any[] = [];
+      for (const table of ['event_sponsors', 'event_sponsorship'] as const) {
+        const { data, error } = await supabase.from(table).select('event_id, sponsor_id, role');
+        if (!error && data?.length) {
+          eventSponsorRows.push(...data);
+        }
+      }
+
+      if (eventSponsorRows.length > 0) {
+        const sponsorIds = Array.from(
+          new Set(
+            eventSponsorRows
+              .map((row: any) => sponsorFkFromRow(row))
+              .filter((id: unknown) => id !== null && id !== undefined)
+              .map((id: unknown) => normKey(id))
+              .filter(Boolean)
+          )
+        );
+
+        const sponsorById = new Map<string, { name: string | null; logo: string | null }>();
+
+        if (sponsorIds.length > 0) {
+          // Use * so we don't 400 if optional columns differ between environments.
+          const { data: byIdRows, error: byIdError } = await supabase
+            .from('sponsors')
+            .select('*')
+            .in('id', sponsorIds);
+
+          if (!byIdError && byIdRows) {
+            for (const s of byIdRows as any[]) {
+              const k = normKey(s.id);
+              if (!k) continue;
+              const { name, logo } = resolveSponsorDisplay(s);
+              sponsorById.set(k, { name, logo });
+            }
+          }
+
+          // Any mapping FKs still missing? Try alternate key column on sponsors (if your schema uses it).
+          const missing = sponsorIds.filter((id) => !sponsorById.has(id));
+          if (missing.length > 0) {
+            const { data: altRows, error: altError } = await supabase
+              .from('sponsors')
+              .select('*')
+              .in('sponsor_id', missing);
+
+            if (!altError && altRows) {
+              for (const s of altRows as any[]) {
+                const { name, logo } = resolveSponsorDisplay(s);
+                const keyAlt = normKey(s.sponsor_id);
+                if (keyAlt) sponsorById.set(keyAlt, { name, logo });
+                const keyPk = normKey(s.id);
+                if (keyPk) sponsorById.set(keyPk, { name, logo });
+              }
+            }
+          }
+        }
+
+        const bestByEventId = new Map<string, any>();
+        for (const row of eventSponsorRows as any[]) {
+          const eventId = normKey(row.event_id);
+          if (!eventId) continue;
+          const current = bestByEventId.get(eventId);
+          if (!current || rankRole(row.role) < rankRole(current.role)) {
+            bestByEventId.set(eventId, row);
+          }
+        }
+
+        for (const [eventId, row] of bestByEventId.entries()) {
+          const sid = normKey(sponsorFkFromRow(row));
+          const sponsor = sid ? sponsorById.get(sid) : undefined;
+          sponsorByEventId.set(eventId, {
+            name: sponsor?.name ?? null,
+            logo: sponsor?.logo ?? null,
+            role: (row.role as string | null) ?? null,
+          });
+        }
+      }
+
+      const mapped: Event[] = (eventRows ?? []).map((row: any) => {
+        const joinedSponsor = sponsorByEventId.get(normKey(row.id));
+        return {
+          id: row.id,
+          title: row.title ?? '',
+          description: row.description ?? null,
+          date: row.event_date ?? '',
+          time: row.event_time ?? '',
+          venue: row.venue_name ?? '',
+          city: row.city ?? null,
+          status: row.status ?? 'draft',
+          attendees: row.attendees ?? 0,
+          maxCapacity: row.max_capacity ?? 0,
+          planType: row.plan_type ?? null,
+          vendors: (row.vendor_ids ?? []).map((id: string) => String(id)),
+          venueId: row.venue_id ?? null,
+          createdBy: row.created_by ?? null,
+          totalRevenue: Number(row.total_revenue ?? 0),
+          image: mapEventImageFromRow(row),
+          sponsorName: joinedSponsor?.name ?? row.sponsor_name ?? null,
+          sponsorLogoUrl: joinedSponsor?.logo ?? row.sponsor_logo_url ?? null,
+          sponsorRole: joinedSponsor?.role ?? null,
+          created_at: row.created_at ?? '',
+          updated_at: row.updated_at ?? '',
+        };
+      });
+
+      setEvents(mapped);
+    } catch (err) {
+      console.error('Error fetching events with sponsors:', err);
+      setError(err instanceof Error ? `Failed to fetch events: ${err.message}` : 'Failed to fetch events');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchEvents();
+  }, [displayFilter]);
+
+  return { events, loading, error, refetch: fetchEvents };
 };
 
 export const useVenues = () => {
@@ -165,6 +403,7 @@ export const useExhibitors = () => {
     email: exhibitor.email,
     phone: exhibitor.phone,
     category: exhibitor.category,
+    subCategories: normalizeSubCategories(exhibitor.sub_category),
     city: exhibitor.city,
     booth: exhibitor.booth,
     registrationDate: exhibitor.registration_date,

@@ -1,11 +1,23 @@
 import { Calendar, Clock, MapPin, ChevronLeft, ChevronRight, Users, MapPinIcon, Star } from 'lucide-react';
 import { useExhibitors } from './hooks/useSupabaseData';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Building, User as UserIcon, MapPin as MapPinIcon2, Package, CheckCircle, Upload, FileText, Image, X } from 'lucide-react';
 import { supabase } from './supabase';
+import { AdSlot } from './components/AdSlot';
 
 interface FormErrors {
   [key: string]: string;
+}
+
+interface CategoryOption {
+  id: string;
+  label: string;
+}
+
+interface SubcategoryOption {
+  id: string;
+  label: string;
+  categoryId?: string | null;
 }
 
 
@@ -18,7 +30,12 @@ export const Exhibitor: React.FC = () => {
     const [lastName, setLastName] = useState('');
     const [email, setEmail] = useState('');
     const [phone, setPhone] = useState('');
-    const [category, setCategory] = useState('');
+    /** Selected row id from `event_categories` (UUID string). */
+    const [selectedCategoryId, setSelectedCategoryId] = useState('');
+    const [selectedSubCategories, setSelectedSubCategories] = useState<string[]>([]);
+    const [categoryOptions, setCategoryOptions] = useState<CategoryOption[]>([]);
+    const [subcategoryOptions, setSubcategoryOptions] = useState<SubcategoryOption[]>([]);
+    const [loadingCategoryOptions, setLoadingCategoryOptions] = useState(true);
     const [companyDescription, setDescription] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [successMsg, setSuccessMsg] = useState('');
@@ -34,6 +51,87 @@ export const Exhibitor: React.FC = () => {
     const [uploadProgress, setUploadProgress] = useState(0);
     const [selectedExhibitor, setSelectedExhibitor] = useState<any>(null);
     const [showFileModal, setShowFileModal] = useState(false);
+
+    useEffect(() => {
+        const loadCategoryOptions = async () => {
+            setLoadingCategoryOptions(true);
+            setErrorMsg('');
+            try {
+                // Schema: event_categories (id, slug, name, sort_order, …)
+                const { data: categoryRows, error: categoryError } = await supabase
+                    .from('event_categories')
+                    .select('id, slug, name, sort_order')
+                    .order('sort_order', { ascending: true })
+                    .order('name', { ascending: true });
+
+                if (categoryError) throw categoryError;
+
+                const categories: CategoryOption[] = (categoryRows ?? [])
+                    .map((row: { id?: string; name?: string | null; slug?: string | null }) => {
+                        const trimmedLabel = (row.name ?? '').trim();
+                        if (!trimmedLabel || row.id == null) return null;
+                        return { id: String(row.id), label: trimmedLabel };
+                    })
+                    .filter(Boolean) as CategoryOption[];
+                setCategoryOptions(categories);
+
+                // Schema: event_subcategories (id, event_category_id, name, sort_order, …)
+                const { data: subcategoryRows, error: subcategoryError } = await supabase
+                    .from('event_subcategories')
+                    .select('id, event_category_id, name, sort_order')
+                    .order('sort_order', { ascending: true })
+                    .order('name', { ascending: true });
+
+                if (subcategoryError) throw subcategoryError;
+
+                const subcategories: SubcategoryOption[] = (subcategoryRows ?? [])
+                    .map(
+                        (row: {
+                            id?: string;
+                            event_category_id?: string | null;
+                            name?: string | null;
+                        }) => {
+                            const trimmedLabel = (row.name ?? '').trim();
+                            if (!trimmedLabel || row.id == null) return null;
+                            const catId =
+                                row.event_category_id != null ? String(row.event_category_id).trim() : null;
+                            return {
+                                id: String(row.id),
+                                label: trimmedLabel,
+                                categoryId: catId,
+                            };
+                        }
+                    )
+                    .filter(Boolean) as SubcategoryOption[];
+                setSubcategoryOptions(subcategories);
+
+                if (categories.length === 0) {
+                    setErrorMsg('No categories found in event_categories. Add rows in Supabase.');
+                }
+            } catch (err) {
+                console.error('Failed to load categories/subcategories:', err);
+                const msg = err instanceof Error ? err.message : 'Unknown error';
+                setErrorMsg(`Failed to load categories from DB: ${msg}`);
+            } finally {
+                setLoadingCategoryOptions(false);
+            }
+        };
+
+        loadCategoryOptions();
+    }, []);
+
+    const selectedCategoryLabel =
+        categoryOptions.find((o) => o.id === selectedCategoryId)?.label ?? '';
+
+    const visibleSubcategories = selectedCategoryId
+        ? subcategoryOptions.filter((sub) => sub.categoryId === selectedCategoryId)
+        : [];
+
+    const toggleSubCategory = (subLabel: string) => {
+        setSelectedSubCategories((prev) =>
+            prev.includes(subLabel) ? prev.filter((x) => x !== subLabel) : [...prev, subLabel]
+        );
+    };
 
     // File upload functions
     const uploadFile = async (file: File, bucket: string, path: string): Promise<string> => {
@@ -155,18 +253,22 @@ export const Exhibitor: React.FC = () => {
             
             setUploadProgress(95);
             
-            const insertData = {
+            const baseInsertData = {
                 company_name: `${firstName} ${lastName}`.trim(),
                 contact_person: `${firstName} ${lastName}`.trim(),
                 email,
                 phone,
-                category,
+                category: selectedCategoryLabel,
                 company_description: companyDescription || null,
                 ...uploadedFiles
             };
+            const insertData = {
+                ...baseInsertData,
+                sub_category: selectedSubCategories,
+            };
             
             // Validate required fields
-            if (!insertData.company_name || !insertData.email || !insertData.phone || !insertData.category) {
+            if (!insertData.company_name || !insertData.email || !insertData.phone || !selectedCategoryId || !insertData.category) {
                 throw new Error('Missing required fields');
             }
             
@@ -228,7 +330,8 @@ export const Exhibitor: React.FC = () => {
             setLastName('');
             setEmail('');
             setPhone('');
-            setCategory('');
+            setSelectedCategoryId('');
+            setSelectedSubCategories([]);
             setDescription('');
             
             // Clear file uploads
@@ -814,6 +917,9 @@ export const Exhibitor: React.FC = () => {
             <div className="mb-16">
                 <h2 className="text-3xl font-semibold tracking-tight text-slate-900 mb-2">Our exhibitors</h2>
                 <p className="text-slate-600 mb-8">Browse registered exhibitors and their details.</p>
+                <div className="w-screen relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] mb-8">
+                    <AdSlot slotId="exhibitors_above" className="w-full" />
+                </div>
                 {exhibitors && exhibitors.length > 0 ? (
                     <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         {exhibitors.map((ex) => (
@@ -825,6 +931,9 @@ export const Exhibitor: React.FC = () => {
                                     </span>
                                 </div>
                                 {ex.category && <p className="text-sm text-slate-600 mb-1">{ex.category}</p>}
+                                {Array.isArray(ex.subCategories) && ex.subCategories.length > 0 && (
+                                    <p className="text-xs text-slate-500 mb-1">Sub Categories: {ex.subCategories.join(', ')}</p>
+                                )}
                                 {ex.city && <p className="text-sm text-slate-500 flex items-center gap-1"><MapPinIcon2 className="h-3.5 w-3.5" />{ex.city}</p>}
                                 {ex.contactPerson && <p className="text-sm text-slate-500 mt-1">Contact: {ex.contactPerson}</p>}
                                 {ex.email && <p className="text-sm text-slate-500 truncate" title={ex.email}>{ex.email}</p>}
@@ -911,29 +1020,52 @@ export const Exhibitor: React.FC = () => {
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Category *</label>
                             <select
-                                value={category}
-                                onChange={(e) => setCategory(e.target.value)}
+                                value={selectedCategoryId}
+                                onChange={(e) => {
+                                    setSelectedCategoryId(e.target.value);
+                                    setSelectedSubCategories([]);
+                                }}
                                 required
+                                disabled={loadingCategoryOptions}
                                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-300 focus:border-slate-400"
                             >
                                 <option value="">Select category</option>
-                                <option value="Technology">Technology</option>
-                                <option value="Healthcare">Healthcare</option>
-                                <option value="Education">Education</option>
-                                <option value="Fashion">Fashion</option>
-                                <option value="Food & Beverage">Food & Beverage</option>
-                                <option value="Automotive">Automotive</option>
-                                <option value="Home & Garden">Home & Garden</option>
-                                <option value="Sports & Fitness">Sports & Fitness</option>
-                                <option value="Travel & Tourism">Travel & Tourism</option>
-                                <option value="Finance & Banking">Finance & Banking</option>
-                                <option value="Real Estate">Real Estate</option>
-                                <option value="Entertainment">Entertainment</option>
-                                <option value="Manufacturing">Manufacturing</option>
-                                <option value="Retail">Retail</option>
-                                <option value="Services">Services</option>
-                                <option value="Others">Others</option>
+                                {categoryOptions.map((opt) => (
+                                    <option key={opt.id} value={opt.id}>
+                                        {opt.label}
+                                    </option>
+                                ))}
                 </select>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Sub Categories</label>
+                            <div className="max-h-44 overflow-y-auto rounded-lg border border-slate-300 p-3 space-y-2">
+                                {loadingCategoryOptions ? (
+                                    <p className="text-sm text-slate-500">Loading sub categories...</p>
+                                ) : !selectedCategoryId ? (
+                                    <p className="text-sm text-slate-500">Select a category to see sub categories.</p>
+                                ) : visibleSubcategories.length === 0 ? (
+                                    <p className="text-sm text-slate-500">No sub categories available for selected category.</p>
+                                ) : (
+                                    visibleSubcategories.map((sub) => (
+                                        <label key={sub.id} className="flex items-center gap-2 text-sm text-slate-700">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedSubCategories.includes(sub.label)}
+                                                onChange={() => toggleSubCategory(sub.label)}
+                                                className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                            />
+                                            <span>{sub.label}</span>
+                                        </label>
+                                    ))
+                                )}
+                            </div>
+                            {!!selectedSubCategories.length && (
+                                <p className="text-xs text-slate-500 mt-2">
+                                    Selected: {selectedSubCategories.join(', ')}
+                                </p>
+                            )}
                         </div>
                 
                         <div>
@@ -1196,6 +1328,9 @@ export const Exhibitor: React.FC = () => {
                                     {selectedExhibitor.email && <p><span className="text-gray-600">Email:</span> {selectedExhibitor.email}</p>}
                                     {selectedExhibitor.phone && <p><span className="text-gray-600">Phone:</span> {selectedExhibitor.phone}</p>}
                                     {selectedExhibitor.category && <p><span className="text-gray-600">Category:</span> {selectedExhibitor.category}</p>}
+                                    {Array.isArray(selectedExhibitor.subCategories) && selectedExhibitor.subCategories.length > 0 && (
+                                        <p><span className="text-gray-600">Sub Categories:</span> {selectedExhibitor.subCategories.join(', ')}</p>
+                                    )}
                                     {selectedExhibitor.city && <p><span className="text-gray-600">City:</span> {selectedExhibitor.city}</p>}
                                     {selectedExhibitor.booth && <p><span className="text-gray-600">Booth:</span> {selectedExhibitor.booth}</p>}
                                 </div>

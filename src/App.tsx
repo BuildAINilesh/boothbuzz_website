@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
-import { Phone, Mail, MapPin, Menu, X } from 'lucide-react';
+import { Phone, Mail, MapPin, Menu, X, Calendar, Users, LayoutGrid, Megaphone } from 'lucide-react';
 import { useUsers, useEvents, useVenues, useVendors, useExhibitors } from './hooks/useSupabaseData';
 import Gallery from './gallery';
 import { Events } from './events';
 import { Exhibitor } from './exhibitor';
 import { AuthProvider } from './contexts/AuthContext';
 import { BannerCarousel } from './components/BannerCarousel';
-import logo from './assets/new.jpg';
+import { AdSlot } from './components/AdSlot';
+import logo from './assets/newlogo.png';
 
 const NAV_LINKS = ['Home', 'About', 'Gallery', 'Events', 'Exhibitors', 'Contact'];
 
@@ -15,7 +16,7 @@ function App() {
   const [activeSection, setActiveSection] = useState('home');
 
   const { loading: usersLoading } = useUsers();
-  const { loading: eventsLoading } = useEvents();
+  const { loading: eventsLoading } = useEvents('visible');
   const { loading: venuesLoading } = useVenues();
   const { loading: vendorsLoading } = useVendors();
   const { loading: exhibitorsLoading } = useExhibitors();
@@ -35,7 +36,7 @@ function App() {
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center h-16">
               <button onClick={() => scrollToSection('home')} className="flex items-center gap-2">
-                <img src={logo} alt="BoothBuzz" className="h-10 w-10 object-contain" />
+                <img src={logo} alt="BoothBuzz" className="h-40 w-40 object-contain" />
               </button>
               <div className="hidden md:flex items-center gap-8">
                 {NAV_LINKS.map((item) => (
@@ -76,38 +77,51 @@ function App() {
           )}
         </nav>
 
-        <main>
+        <main className="pt-16">
           <section id="home" className="pt-0">
             <BannerCarousel onScrollToSection={scrollToSection} />
           </section>
 
-          <section id="about" className="py-24 bg-indigo-50/40">
+          <section id="about" className="py-28 bg-gradient-to-b from-indigo-50/60 to-white">
             <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="max-w-2xl">
-                <h2 className="text-3xl font-semibold tracking-tight text-slate-900">About BoothBuzz</h2>
-                <p className="mt-4 text-lg text-slate-600 leading-relaxed">
-                  We turn community spaces into exhibition venues where local talent gets seen. From food festivals to art and craft fairs, we help societies, malls, and local venues run events that connect people.
+              <div className="max-w-3xl">
+                <h2 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-[2.5rem]">
+                  About BoothBuzz
+                </h2>
+                <div className="mt-6 h-1 w-16 rounded-full bg-indigo-500" aria-hidden />
+                <p className="mt-8 text-lg text-slate-600 leading-relaxed">
+                  BoothBuzz transforms everyday community spaces into vibrant exhibition destinations where local talent shines. From curated food festivals to art and craft showcases, we partner with societies, malls, and local venues to create engaging events that bring people together and celebrate creativity.
+                </p>
+                <p className="mt-5 text-lg text-slate-600 leading-relaxed">
+                  We believe exhibitions should be more than stalls — they should be experiences that connect communities, support local entrepreneurs, and spark meaningful interactions.
                 </p>
               </div>
-              <div className="mt-16 grid sm:grid-cols-2 gap-8">
-                <div>
-                  <h3 className="text-lg font-medium text-slate-900">What we do</h3>
-                  <p className="mt-3 text-slate-600 leading-relaxed">
-                    End-to-end exhibition planning and execution, vendor coordination, and event marketing so your event reaches the right audience.
+
+              <div className="mt-20 rounded-2xl bg-white border border-slate-200/80 shadow-sm shadow-slate-200/50 overflow-hidden">
+                <div className="p-8 sm:p-10 lg:p-12">
+                  <h3 className="text-2xl font-semibold text-slate-900">What We Do</h3>
+                  <p className="mt-4 text-slate-600 leading-relaxed max-w-2xl">
+                    We provide end-to-end exhibition planning and execution — from concept to completion.
                   </p>
-                </div>
-                <div>
-                  <h3 className="text-lg font-medium text-slate-900">By the numbers</h3>
-                  <div className="mt-3 flex gap-10">
-                    <div>
-                      <span className="text-2xl font-semibold text-indigo-600">50+</span>
-                      <span className="ml-1 text-slate-600">Exhibitions</span>
-                    </div>
-                    <div>
-                      <span className="text-2xl font-semibold text-indigo-600">25+</span>
-                      <span className="ml-1 text-slate-600">Societies</span>
-                    </div>
-                  </div>
+                  <p className="mt-2 text-sm font-medium text-slate-500 uppercase tracking-wider">Our services include:</p>
+                  <ul className="mt-6 grid sm:grid-cols-2 gap-5">
+                    {[
+                      { icon: Calendar, label: 'Strategic event planning' },
+                      { icon: Users, label: 'Vendor sourcing and coordination' },
+                      { icon: LayoutGrid, label: 'On-ground event management' },
+                      { icon: Megaphone, label: 'Marketing and audience promotion' },
+                    ].map(({ icon: Icon, label }) => (
+                      <li key={label} className="flex items-start gap-4 p-4 rounded-xl bg-slate-50/80 hover:bg-indigo-50/50 transition-colors">
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-indigo-100 text-indigo-600">
+                          <Icon className="h-5 w-5" />
+                        </span>
+                        <span className="text-slate-700 font-medium pt-1.5">{label}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="mt-8 text-slate-600 leading-relaxed border-l-4 border-indigo-200 pl-5">
+                    We ensure every event is professionally managed, well-promoted, and designed to attract the right crowd.
+                  </p>
                 </div>
               </div>
             </div>
@@ -124,6 +138,11 @@ function App() {
           <section id="exhibitors" className="py-24 bg-indigo-50/30">
             <Exhibitor />
           </section>
+
+          {/* Above Contact — full width */}
+          <div className="w-full border-b border-slate-200">
+            <AdSlot slotId="above_contact" className="w-full" />
+          </div>
 
           <section id="contact" className="py-24 bg-slate-900 text-white">
             <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -202,7 +221,7 @@ function App() {
             </div>
           </section>
 
-          <footer className="border-t border-slate-200 bg-indigo-50/20 py-10">
+          <footer className="border-t border-slate-200 bg-indigo-50/20 py-6">
             <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center gap-4">
               <span className="font-medium text-indigo-600">BoothBuzz</span>
               <span className="text-sm text-slate-500">© {new Date().getFullYear()} BoothBuzz. All rights reserved.</span>
