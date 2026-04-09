@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Phone, Mail, MapPin, Menu, X, Calendar, Users, LayoutGrid, Megaphone } from 'lucide-react';
 import { useUsers, useEvents, useVenues, useVendors, useExhibitors } from './hooks/useSupabaseData';
 import Gallery from './gallery';
@@ -20,7 +20,11 @@ function App() {
   const { loading: venuesLoading } = useVenues();
   const { loading: vendorsLoading } = useVendors();
   const { loading: exhibitorsLoading } = useExhibitors();
-  const loading = usersLoading || eventsLoading || venuesLoading || vendorsLoading || exhibitorsLoading;
+  void usersLoading;
+  void eventsLoading;
+  void venuesLoading;
+  void vendorsLoading;
+  void exhibitorsLoading;
 
   const scrollToSection = (sectionId: string) => {
     setActiveSection(sectionId);
@@ -80,6 +84,9 @@ function App() {
         <main className="pt-16">
           <section id="home" className="pt-0">
             <BannerCarousel onScrollToSection={scrollToSection} />
+            <div className="w-full border-y border-slate-200">
+              <AdSlot slotId="top_strip" className="w-full" />
+            </div>
           </section>
 
           <section id="about" className="py-28 bg-gradient-to-b from-indigo-50/60 to-white">

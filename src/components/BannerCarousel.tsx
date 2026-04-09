@@ -1,25 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { useEvents } from '../hooks/useSupabaseData';
 
 const DEFAULT_SLIDES = [
-  { id: '1', image: 'https://images.pexels.com/photos/1267320/pexels-photo-1267320.jpeg?auto=compress&cs=tinysrgb&w=1600', title: 'Exhibitions that bring communities together' },
-  { id: '2', image: 'https://images.pexels.com/photos/1181671/pexels-photo-1181671.jpeg?auto=compress&cs=tinysrgb&w=1600', title: 'Local talent, local venues' },
-  { id: '3', image: 'https://images.pexels.com/photos/1099816/pexels-photo-1099816.jpeg?auto=compress&cs=tinysrgb&w=1600', title: 'Plan your next exhibition' },
+  { id: '1', image: 'https://images.pexels.com/photos/3183197/pexels-photo-3183197.jpeg?auto=compress&cs=tinysrgb&w=1800', title: 'Exhibitions that bring communities together' },
+  { id: '2', image: 'https://images.pexels.com/photos/2747449/pexels-photo-2747449.jpeg?auto=compress&cs=tinysrgb&w=1800', title: 'Local talent, local venues' },
+  { id: '3', image: 'https://images.pexels.com/photos/2263436/pexels-photo-2263436.jpeg?auto=compress&cs=tinysrgb&w=1800', title: 'Plan your next exhibition' },
 ];
 
-const FALLBACK_IMAGE = 'https://images.pexels.com/photos/1099816/pexels-photo-1099816.jpeg?auto=compress&cs=tinysrgb&w=1600';
+const FALLBACK_IMAGE = 'https://images.pexels.com/photos/3183197/pexels-photo-3183197.jpeg?auto=compress&cs=tinysrgb&w=1800';
 
 export const BannerCarousel: React.FC<{ onScrollToSection?: (id: string) => void }> = ({ onScrollToSection }) => {
-  const { events, loading } = useEvents('upcoming');
   const [index, setIndex] = useState(0);
 
-  const slides = (events?.length && events.some(e => e.image))
-    ? events
-        .filter(e => e.image)
-        .slice(0, 6)
-        .map(e => ({ id: e.id, image: e.image!, title: e.title }))
-    : DEFAULT_SLIDES;
+  const slides = DEFAULT_SLIDES;
 
   const go = (next: number) => {
     setIndex(i => (i + next + slides.length) % slides.length);
@@ -30,14 +23,6 @@ export const BannerCarousel: React.FC<{ onScrollToSection?: (id: string) => void
     const t = setInterval(() => setIndex(i => (i + 1) % slideCount), 5000);
     return () => clearInterval(t);
   }, [slideCount]);
-
-  if (loading && !events?.length) {
-    return (
-      <section className="relative h-[70vh] min-h-[420px] bg-slate-100 flex items-center justify-center">
-        <div className="animate-pulse text-slate-400 text-sm">Loading...</div>
-      </section>
-    );
-  }
 
   return (
     <section className="relative h-[70vh] min-h-[420px] overflow-hidden bg-slate-900">

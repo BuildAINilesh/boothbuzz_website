@@ -113,6 +113,12 @@ export interface EventRegistration {
   subCategories?: string[] | null; // sub_category from DB
     city?: string | null;
     booth?: string | null;
+  companyLogoUrl?: string | null; // company_logo_url from DB
+  productImagesUrls?: string[] | null; // product_images_urls from DB
+  companyProfileUrl?: string | null; // company_profile_url from DB
+  gstCertificateUrl?: string | null; // gst_certificate_url from DB
+  panCardUrl?: string | null; // pan_card_url from DB
+  productCatalogUrl?: string | null; // product_catalog_url from DB
     registrationDate?: string | null; // registration_date from DB
     status: 'registered' | 'confirmed' | 'checked_in' | 'cancelled';
     paymentStatus: 'pending' | 'paid' | 'refunded'; // payment_status from DB
@@ -146,4 +152,34 @@ export interface EventRegistration {
     monthlyRevenue: number;
     revenueGrowth: number;
     userGrowth: number;
+  }
+
+  /** Gallery testimonials (`testimonials` table: content, author_name, author_title, …). */
+  export interface Testimonial {
+    id: string;
+    content: string;
+    authorName: string;
+    authorTitle?: string | null;
+    imageUrl?: string | null;
+    avatarUrl?: string | null;
+    rating: number;
+    sortOrder: number;
+    isPublished?: boolean;
+    created_at: string;
+    updated_at: string;
+  }
+
+  export interface WebsiteAd {
+    id: string;
+    sectionKey: string;
+    title?: string | null;
+    mediaUrl: string;
+    mediaType: 'image' | 'video';
+    thumbnailUrl?: string | null;
+    ctaText?: string | null;
+    ctaUrl?: string | null;
+    sortOrder: number;
+    isActive: boolean;
+    created_at: string;
+    updated_at: string;
   }

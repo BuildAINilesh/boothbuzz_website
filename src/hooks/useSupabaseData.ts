@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase, isSupabaseConfigured } from '../supabase';
-import { User, Event, Venue, Vendor, Exhibitor } from '../types';
+import { User, Event, Venue, Vendor, Exhibitor, Testimonial, WebsiteAd } from '../types';
 
 /** First non-empty string from row (supports alternate DB column names). */
 function pickRawEventImage(row: Record<string, unknown>): string | null {
@@ -400,12 +400,30 @@ export const useExhibitors = () => {
     id: exhibitor.id,
     companyName: exhibitor.company_name,
     contactPerson: exhibitor.contact_person,
+    designation: exhibitor.designation,
+    companyDescription: exhibitor.company_description,
+    website: exhibitor.website,
+    alternateEmail: exhibitor.alternate_email,
+    alternatePhone: exhibitor.alternate_phone,
+    address: exhibitor.address,
+    country: exhibitor.country,
+    state: exhibitor.state,
+    pincode: exhibitor.pincode,
+    gstNumber: exhibitor.gst_number,
     email: exhibitor.email,
     phone: exhibitor.phone,
     category: exhibitor.category,
     subCategories: normalizeSubCategories(exhibitor.sub_category),
     city: exhibitor.city,
     booth: exhibitor.booth,
+    companyLogoUrl: exhibitor.company_logo_url ?? null,
+    productImagesUrls: Array.isArray(exhibitor.product_images_urls)
+      ? exhibitor.product_images_urls.map((item: unknown) => String(item).trim()).filter(Boolean)
+      : null,
+    companyProfileUrl: exhibitor.company_profile_url ?? null,
+    gstCertificateUrl: exhibitor.gst_certificate_url ?? null,
+    panCardUrl: exhibitor.pan_card_url ?? null,
+    productCatalogUrl: exhibitor.product_catalog_url ?? null,
     registrationDate: exhibitor.registration_date,
     status: exhibitor.status,
     paymentStatus: exhibitor.payment_status,
@@ -414,4 +432,133 @@ export const useExhibitors = () => {
   }));
 
   return { exhibitors, loading, error, refetch };
+};
+
+function mapTestimonialRow(row: any): Testimonial {
+  const content = String(row.content ?? row.quote ?? '').trim();
+  const authorName = String(row.author_name ?? row.author ?? '').trim();
+  const authorTitleRaw = row.author_title ?? row.role ?? null;
+  const authorTitle =
+    authorTitleRaw == null || authorTitleRaw === '' ? null : String(authorTitleRaw).trim();
+  return {
+    id: row.id,
+    content,
+    authorName,
+    authorTitle,
+    imageUrl: row.image_url ?? null,
+    avatarUrl: row.avatar_url ?? null,
+    rating: Math.min(5, Math.max(1, Number(row.rating ?? 5))),
+    sortOrder: Number(row.sort_order ?? 0),
+    isPublished: row.is_published !== false,
+    created_at: row.created_at ?? '',
+    updated_at: row.updated_at ?? '',
+  };
+}
+
+export const useTestimonials = () => {
+  const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchTestimonials = async () => {
+    if (!isSupabaseConfigured()) {
+      setError('Supabase is not configured. Please check your environment variables.');
+      setLoading(false);
+      return;
+    }
+    try {
+      setLoading(true);
+      setError(null);
+      const { data, error: qErr } = await supabase
+        .from('testimonials')
+        .select('*')
+        .order('sort_order', { ascending: true });
+
+      if (qErr) throw qErr;
+
+      const rows = (data ?? [])
+        .filter((row: any) => row.is_published !== false)
+        .map(mapTestimonialRow)
+        .filter((t) => t.content && t.authorName);
+
+      setTestimonials(rows);
+    } catch (err) {
+      console.error('Error fetching testimonials:', err);
+      setError(err instanceof Error ? err.message : 'Failed to fetch testimonials');
+      setTestimonials([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTestimonials();
+  }, []);
+
+  return { testimonials, loading, error, refetch: fetchTestimonials };
+};
+
+export const useWebsiteAds = (sectionKey: string) => {
+  const [ads, setAds] = useState<WebsiteAd[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchAds = async () => {
+    if (!isSupabaseConfigured()) {
+      setError('Supabase is not configured. Please check your environment variables.');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      const { data, error: qErr } = await supabase
+        .from('website_ads')
+        .select('*')
+        .eq('section_key', sectionKey)
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: true });
+
+      if (qErr) throw qErr;
+
+      const mapped: WebsiteAd[] = (data ?? [])
+        .map((row: any) => {
+          const mediaUrl = String(row.media_url ?? '').trim();
+          if (!mediaUrl) return null;
+          const mediaType = String(row.media_type ?? 'image').toLowerCase() === 'video' ? 'video' : 'image';
+          return {
+            id: row.id,
+            sectionKey: String(row.section_key ?? ''),
+            title: row.title ?? null,
+            mediaUrl,
+            mediaType,
+            thumbnailUrl: row.thumbnail_url ?? null,
+            ctaText: row.cta_text ?? null,
+            ctaUrl: row.cta_url ?? null,
+            sortOrder: Number(row.sort_order ?? 0),
+            isActive: row.is_active !== false,
+            created_at: row.created_at ?? '',
+            updated_at: row.updated_at ?? '',
+          };
+        })
+        .filter(Boolean) as WebsiteAd[];
+
+      setAds(mapped);
+    } catch (err) {
+      console.error('Error fetching website ads:', err);
+      setError(err instanceof Error ? err.message : 'Failed to fetch website ads');
+      setAds([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAds();
+  }, [sectionKey]);
+
+  return { ads, loading, error, refetch: fetchAds };
 };

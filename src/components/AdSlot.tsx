@@ -1,6 +1,16 @@
 import React from 'react';
 import { getAdSlotConfig, type AdSlotConfig } from '../config/adSlots';
 import { MockAdContent } from './MockAdContent';
+import { useWebsiteAds } from '../hooks/useSupabaseData';
+
+function slotIdToSectionKey(slotId: string): string {
+  if (slotId === 'top_strip' || slotId === 'home_about') return 'home_banner';
+  if (slotId === 'events_above' || slotId === 'events_infeed') return 'upcoming_events';
+  if (slotId === 'gallery_middle') return 'past_events';
+  if (slotId === 'exhibitors_above') return 'our_exhibitors';
+  if (slotId === 'above_contact' || slotId === 'footer' || slotId === 'sticky') return 'bottom_ads';
+  return slotId;
+}
 
 export interface AdSlotProps {
   slotId: string;
@@ -23,6 +33,8 @@ export const AdSlot: React.FC<AdSlotProps> = ({
   children,
   placeholderOnly = false,
 }) => {
+  const sectionKey = slotIdToSectionKey(slotId);
+  const { ads } = useWebsiteAds(sectionKey);
   const config = getAdSlotConfig(slotId);
   if (!config) return null;
 
@@ -54,6 +66,58 @@ export const AdSlot: React.FC<AdSlotProps> = ({
     .join(' ');
 
   const defaultContent = <MockAdContent slotId={slotId} format={formatClass} />;
+  const dbContent =
+    ads.length > 0 ? (
+      <div className="w-full overflow-x-auto scrollbar-hide">
+        <div className="flex gap-3 sm:gap-4 snap-x snap-mandatory pb-1">
+          {ads.map((ad) => (
+            <article
+              key={ad.id}
+              className="snap-start shrink-0 w-[92%] sm:w-[460px] lg:w-[520px] rounded-xl overflow-hidden border border-slate-200 bg-white shadow-sm"
+            >
+              <div className="relative bg-slate-100">
+                {ad.mediaType === 'video' ? (
+                  <video
+                    src={ad.mediaUrl}
+                    poster={ad.thumbnailUrl ?? undefined}
+                    className="w-full h-40 sm:h-48 object-cover"
+                    controls
+                    muted
+                    playsInline
+                  />
+                ) : (
+                  <img
+                    src={ad.mediaUrl}
+                    alt={ad.title ?? 'Advertisement'}
+                    className="w-full h-40 sm:h-48 object-cover"
+                    loading="lazy"
+                  />
+                )}
+              </div>
+              {(ad.title || ad.ctaText) && (
+                <div className="p-3 sm:p-4">
+                  {ad.title && <h4 className="font-semibold text-slate-900 text-sm sm:text-base">{ad.title}</h4>}
+                  {ad.ctaText && (
+                    ad.ctaUrl ? (
+                      <a
+                        href={ad.ctaUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-2 inline-block text-sm font-medium text-indigo-600 hover:text-indigo-700"
+                      >
+                        {ad.ctaText}
+                      </a>
+                    ) : (
+                      <span className="mt-2 inline-block text-sm font-medium text-indigo-600">{ad.ctaText}</span>
+                    )
+                  )}
+                </div>
+              )}
+            </article>
+          ))}
+        </div>
+      </div>
+    ) : null;
 
   const slotContent = placeholderOnly ? (
     <div
@@ -69,7 +133,7 @@ export const AdSlot: React.FC<AdSlotProps> = ({
       Ad slot
     </div>
   ) : (
-    children ?? defaultContent
+    children ?? dbContent ?? defaultContent
   );
 
   return (

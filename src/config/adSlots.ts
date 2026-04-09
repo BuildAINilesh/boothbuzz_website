@@ -49,9 +49,9 @@ export const AD_SLOTS: Record<string, AdSlotConfig> = {
   },
   gallery_middle: {
     slotId: 'gallery_middle',
-    format: 'rectangle',
-    width: 336,
-    height: 280,
+    format: 'leaderboard',
+    width: 728,
+    height: 90,
     label: 'Ad',
     enabled: true,
   },

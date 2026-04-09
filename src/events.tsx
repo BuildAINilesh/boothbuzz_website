@@ -1,4 +1,4 @@
-import { Calendar, Clock, MapPin, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, Clock, MapPin, ChevronLeft, ChevronRight, Search as SearchIcon } from 'lucide-react';
 import { useEvents, useUsers } from './hooks/useSupabaseData';
 import React, { useState } from 'react';
 import { EventRegistration } from './components/EventRegistration';
@@ -23,6 +23,7 @@ export const Events: React.FC = () => {
   const [showRegistration, setShowRegistration] = useState(false);
   const [selectedEventForDetail, setSelectedEventForDetail] = useState<any>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const loading = usersLoading || eventsLoading;
 
@@ -66,6 +67,22 @@ export const Events: React.FC = () => {
     image: event.image || defaultImage,
     featured: event.planType === 'Plan A'
   }));
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const filteredEvents = mappedEvents.filter((event) => {
+    if (!normalizedQuery) return true;
+    const haystack = [
+      event.title,
+      event.description,
+      event.venue,
+      event.city,
+      event.sponsorName,
+      event.status,
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+    return haystack.includes(normalizedQuery);
+  });
 
   const formatSponsorRoleLabel = (role?: string | null) => {
     const normalized = (role ?? '').toLowerCase().trim();
@@ -91,8 +108,23 @@ export const Events: React.FC = () => {
           <AdSlot slotId="events_above" className="w-full" />
         </div>
 
+        <div className="mb-5">
+          <div className="relative w-full md:max-w-xl">
+            <SearchIcon className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search events by name, venue, city, sponsor..."
+              className="w-full pl-10 pr-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+            />
+          </div>
+        </div>
+
         <div className="flex items-center justify-between gap-4 mb-6">
-          <p className="text-sm text-slate-500">Scroll or use arrows</p>
+          <p className="text-sm text-slate-500">
+            {searchQuery.trim() ? `${filteredEvents.length} result(s)` : 'Scroll or use arrows'}
+          </p>
           <div className="flex gap-1">
             <button
               type="button"
@@ -117,7 +149,7 @@ export const Events: React.FC = () => {
           id="events-container"
           className="flex gap-6 overflow-x-auto scrollbar-hide pb-2 -mx-4 px-4 sm:mx-0 sm:px-0"
         >
-          {mappedEvents.map((event, index) => (
+          {filteredEvents.map((event, index) => (
             <React.Fragment key={event.id}>
               {index > 0 && index % 3 === 0 && (
                 <div className="flex-shrink-0 w-[280px] sm:w-[300px] flex items-stretch">
@@ -181,6 +213,9 @@ export const Events: React.FC = () => {
             </React.Fragment>
           ))}
         </div>
+        {filteredEvents.length === 0 && (
+          <p className="text-sm text-slate-500 mt-2">No events match your search.</p>
+        )}
       </div>
 
       {selectedEventForDetail && showDetailModal && (

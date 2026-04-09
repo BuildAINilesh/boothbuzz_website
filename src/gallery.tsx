@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { MapPin, Star, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useEvents } from './hooks/useSupabaseData';
+import { useEvents, useTestimonials } from './hooks/useSupabaseData';
 import { AdSlot } from './components/AdSlot';
 
 const defaultImage = 'https://images.pexels.com/photos/1099816/pexels-photo-1099816.jpeg?auto=compress&cs=tinysrgb&w=400&h=250&fit=crop';
@@ -14,17 +14,33 @@ const CATEGORIES: { label: string; bg: string; text: string }[] = [
   { label: 'Photography', bg: 'bg-pink-50', text: 'text-pink-600' },
 ];
 
-const TESTIMONIALS = [
-  { quote: "BoothBuzz transformed our society's parking area into a vibrant marketplace. Flawless organization and overwhelming community response.", author: "Priya Sharma", role: "Society Secretary, Sunrise Apartments", image: "https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&fit=crop", rating: 5 },
-  { quote: "As a home baker, this exhibition gave me the perfect platform. I received 50+ orders and made wonderful connections.", author: "Meera Patel", role: "Home Baker & Exhibitor", image: "https://images.pexels.com/photos/1181686/pexels-photo-1181686.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&fit=crop", rating: 5 },
-  { quote: "The art exhibition brought our community together like never before. Well-organized and incredibly supportive team.", author: "Rajesh Kumar", role: "Resident, Green Valley Society", image: "https://images.pexels.com/photos/1222271/pexels-photo-1222271.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&fit=crop", rating: 5 },
-  { quote: "Our jewelry exhibition was a huge success. We sold 80% of inventory and gained many new customers.", author: "Anita Desai", role: "Jewelry Designer, Sparkle Creations", image: "https://images.pexels.com/photos/1130626/pexels-photo-1130626.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&fit=crop", rating: 5 },
-  { quote: "The food festival was phenomenal. Our restaurant gained 100+ new regular customers from this single event.", author: "Chef Vikram Singh", role: "Owner, Spice Garden Restaurant", image: "https://images.pexels.com/photos/1043471/pexels-photo-1043471.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&fit=crop", rating: 5 },
+/** Used if DB has no rows yet or fetch fails (e.g. migration not applied). */
+const FALLBACK_TESTIMONIALS: { id: string; quote: string; author: string; role: string; image: string; rating: number }[] = [
+  { id: 'fb-1', quote: "BoothBuzz transformed our society's parking area into a vibrant marketplace. Flawless organization and overwhelming community response.", author: 'Priya Sharma', role: 'Society Secretary, Sunrise Apartments', image: 'https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&fit=crop', rating: 5 },
+  { id: 'fb-2', quote: 'As a home baker, this exhibition gave me the perfect platform. I received 50+ orders and made wonderful connections.', author: 'Meera Patel', role: 'Home Baker & Exhibitor', image: 'https://images.pexels.com/photos/1181686/pexels-photo-1181686.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&fit=crop', rating: 5 },
+  { id: 'fb-3', quote: 'The art exhibition brought our community together like never before. Well-organized and incredibly supportive team.', author: 'Rajesh Kumar', role: 'Resident, Green Valley Society', image: 'https://images.pexels.com/photos/1222271/pexels-photo-1222271.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&fit=crop', rating: 5 },
+  { id: 'fb-4', quote: 'Our jewelry exhibition was a huge success. We sold 80% of inventory and gained many new customers.', author: 'Anita Desai', role: 'Jewelry Designer, Sparkle Creations', image: 'https://images.pexels.com/photos/1130626/pexels-photo-1130626.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&fit=crop', rating: 5 },
+  { id: 'fb-5', quote: 'The food festival was phenomenal. Our restaurant gained 100+ new regular customers from this single event.', author: 'Chef Vikram Singh', role: 'Owner, Spice Garden Restaurant', image: 'https://images.pexels.com/photos/1043471/pexels-photo-1043471.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&fit=crop', rating: 5 },
 ];
 
 export const Gallery: React.FC<{ title?: string }> = () => {
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const { events, loading, error } = useEvents('past');
+  const { testimonials, loading: testimonialsLoading, error: testimonialsError } = useTestimonials();
+
+  const testimonialRows =
+    testimonials.length > 0
+      ? testimonials.map((t) => ({
+          id: t.id,
+          quote: t.content,
+          author: t.authorName,
+          role: t.authorTitle ?? '',
+          image: (t.avatarUrl || t.imageUrl || '').trim(),
+          rating: t.rating,
+        }))
+      : !testimonialsLoading && (testimonialsError || testimonials.length === 0)
+        ? FALLBACK_TESTIMONIALS
+        : [];
 
   const scrollGallery = (dir: number) => {
     const el = document.getElementById('gallery-events-container');
@@ -53,8 +69,8 @@ export const Gallery: React.FC<{ title?: string }> = () => {
         ))}
       </div>
 
-      <div className="mb-6 py-2 px-1 flex justify-center">
-        <AdSlot slotId="gallery_middle" className="w-full max-w-[min(400px,100%)] flex justify-center" />
+      <div className="w-screen relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] mb-6">
+        <AdSlot slotId="gallery_middle" className="w-full" />
       </div>
 
       <div className="flex items-center justify-between gap-4 mb-6">
@@ -119,23 +135,31 @@ export const Gallery: React.FC<{ title?: string }> = () => {
           </button>
         </div>
         <div id="testimonials-container" className="flex gap-6 overflow-x-auto scrollbar-hide pb-2">
-          {TESTIMONIALS.map((t, i) => (
-            <div key={i} className="flex-shrink-0 w-[300px] rounded-xl border border-slate-200 bg-white p-6">
-              <div className="flex gap-1 mb-3">
-                {[...Array(t.rating)].map((_, j) => (
-                  <Star key={j} className="h-4 w-4 text-amber-400 fill-current" />
-                ))}
-              </div>
-              <p className="text-slate-600 text-sm leading-relaxed">"{t.quote}"</p>
-              <div className="mt-4 flex items-center gap-3">
-                <img src={t.image} alt="" className="w-10 h-10 rounded-full object-cover" />
-                <div>
-                  <div className="font-medium text-slate-900 text-sm">{t.author}</div>
-                  <div className="text-xs text-slate-500">{t.role}</div>
+          {testimonialsLoading && testimonialRows.length === 0 ? (
+            <p className="text-sm text-slate-500 py-4">Loading testimonials…</p>
+          ) : (
+            testimonialRows.map((t) => (
+              <div key={t.id} className="flex-shrink-0 w-[300px] rounded-xl border border-slate-200 bg-white p-6">
+                <div className="flex gap-1 mb-3">
+                  {[...Array(t.rating)].map((_, j) => (
+                    <Star key={j} className="h-4 w-4 text-amber-400 fill-current" />
+                  ))}
+                </div>
+                <p className="text-slate-600 text-sm leading-relaxed">&ldquo;{t.quote}&rdquo;</p>
+                <div className="mt-4 flex items-center gap-3">
+                  {t.image ? (
+                    <img src={t.image} alt="" className="w-10 h-10 rounded-full object-cover" />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-slate-200" aria-hidden />
+                  )}
+                  <div>
+                    <div className="font-medium text-slate-900 text-sm">{t.author}</div>
+                    <div className="text-xs text-slate-500">{t.role}</div>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
 

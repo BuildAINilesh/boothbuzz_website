@@ -1,9 +1,10 @@
-import { Calendar, Clock, MapPin, ChevronLeft, ChevronRight, Users, MapPinIcon, Star } from 'lucide-react';
+import { Calendar, Clock, MapPin, ChevronLeft, ChevronRight, Users, MapPinIcon, Star, Search as SearchIcon, LayoutGrid, List } from 'lucide-react';
 import { useExhibitors } from './hooks/useSupabaseData';
 import React, { useEffect, useState } from 'react';
 import { Building, User as UserIcon, MapPin as MapPinIcon2, Package, CheckCircle, Upload, FileText, Image, X } from 'lucide-react';
 import { supabase } from './supabase';
 import { AdSlot } from './components/AdSlot';
+import type { Exhibitor as ExhibitorRecord } from './types';
 
 interface FormErrors {
   [key: string]: string;
@@ -49,8 +50,11 @@ export const Exhibitor: React.FC = () => {
     const [companyLogo, setCompanyLogo] = useState<File | null>(null);
     const [productImages, setProductImages] = useState<File[]>([]);
     const [uploadProgress, setUploadProgress] = useState(0);
-    const [selectedExhibitor, setSelectedExhibitor] = useState<any>(null);
+    const [selectedExhibitor, setSelectedExhibitor] = useState<ExhibitorRecord | null>(null);
     const [showFileModal, setShowFileModal] = useState(false);
+    const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+    const [searchQuery, setSearchQuery] = useState('');
+    const [showAllExhibitorsView, setShowAllExhibitorsView] = useState(false);
 
     useEffect(() => {
         const loadCategoryOptions = async () => {
@@ -350,6 +354,26 @@ export const Exhibitor: React.FC = () => {
             setSubmitting(false);
         }
     };
+
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+    const filteredExhibitors = (exhibitors || []).filter((ex) => {
+        if (!normalizedQuery) return true;
+        const haystack = [
+            ex.companyName,
+            ex.category,
+            ex.contactPerson,
+            ex.city,
+            ex.companyDescription,
+            ex.status,
+            ex.booth,
+            ...(ex.subCategories || []),
+        ]
+            .filter(Boolean)
+            .join(' ')
+            .toLowerCase();
+        return haystack.includes(normalizedQuery);
+    });
+    const mainSectionExhibitors = viewMode === 'grid' ? filteredExhibitors.slice(0, 6) : filteredExhibitors;
 
     // --- Advanced Exhibitor Registration (Admin) - COMMENTED OUT ---
     /*
@@ -920,29 +944,124 @@ export const Exhibitor: React.FC = () => {
                 <div className="w-screen relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] mb-8">
                     <AdSlot slotId="exhibitors_above" className="w-full" />
                 </div>
-                {exhibitors && exhibitors.length > 0 ? (
-                    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {exhibitors.map((ex) => (
-                            <div key={ex.id} className="bg-white border border-slate-200 rounded-xl p-5 hover:border-slate-300 transition-colors">
-                                <div className="flex items-start justify-between gap-2 mb-2">
-                                    <h3 className="font-semibold text-slate-900">{ex.companyName}</h3>
-                                    <span className="text-xs bg-slate-100 text-slate-700 px-2 py-1 rounded-md shrink-0">
+                <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div className="relative w-full md:max-w-lg">
+                        <SearchIcon className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="Search by name, category, business type, city..."
+                            className="w-full pl-10 pr-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                        />
+                    </div>
+                    <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1 self-start">
+                        <button
+                            type="button"
+                            onClick={() => setViewMode('grid')}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                                viewMode === 'grid'
+                                    ? 'bg-indigo-600 text-white'
+                                    : 'text-slate-600 hover:bg-slate-100'
+                            }`}
+                        >
+                            <LayoutGrid className="h-4 w-4" />
+                            Grid
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setViewMode('list')}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                                viewMode === 'list'
+                                    ? 'bg-indigo-600 text-white'
+                                    : 'text-slate-600 hover:bg-slate-100'
+                            }`}
+                        >
+                            <List className="h-4 w-4" />
+                            List
+                        </button>
+                    </div>
+                </div>
+                {filteredExhibitors.length > 0 ? (
+                    <>
+                    <div className={viewMode === 'grid' ? 'grid sm:grid-cols-2 lg:grid-cols-3 gap-4' : 'space-y-4'}>
+                        {mainSectionExhibitors.map((ex) => {
+                            const previewImage = ex.companyLogoUrl || ex.productImagesUrls?.[0] || null;
+                            return (
+                            <button
+                                key={ex.id}
+                                type="button"
+                                onClick={() => {
+                                    setSelectedExhibitor(ex);
+                                    setShowFileModal(true);
+                                }}
+                                className={`text-left bg-gradient-to-br from-white via-indigo-50/40 to-violet-50/50 border border-indigo-100 rounded-2xl overflow-hidden hover:border-indigo-200 hover:shadow-lg hover:shadow-indigo-100/50 transition-all ${
+                                    viewMode === 'list' ? 'w-full flex flex-col md:flex-row' : ''
+                                }`}
+                            >
+                                <div className={`relative bg-slate-100 ${viewMode === 'list' ? 'h-48 md:h-auto md:w-64 md:shrink-0' : 'h-40 w-full'}`}>
+                                    {previewImage ? (
+                                        <img
+                                            src={previewImage}
+                                            alt={`${ex.companyName} showcase`}
+                                            className="h-full w-full object-cover"
+                                        />
+                                    ) : (
+                                        <div className="h-full w-full bg-gradient-to-r from-indigo-200 via-purple-200 to-pink-200 flex items-center justify-center">
+                                            <div className="text-center px-4">
+                                                <Image className="h-7 w-7 text-indigo-700 mx-auto mb-2" />
+                                                <p className="text-xs text-indigo-800 font-medium">Portfolio image not uploaded yet</p>
+                                            </div>
+                                        </div>
+                                    )}
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/10 to-transparent" />
+                                    {ex.category && (
+                                        <span className="absolute top-3 left-3 text-[11px] bg-white/90 text-indigo-700 px-2.5 py-1 rounded-full font-medium border border-indigo-100">
+                                            {ex.category}
+                                        </span>
+                                    )}
+                                    <span className="absolute top-3 right-3 text-[11px] bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full font-semibold capitalize">
                                         {ex.status}
                                     </span>
                                 </div>
-                                {ex.category && <p className="text-sm text-slate-600 mb-1">{ex.category}</p>}
+                                <div className={`p-5 ${viewMode === 'list' ? 'flex-1' : ''}`}>
+                                <div className="flex items-start justify-between gap-2 mb-2">
+                                    <h3 className="font-semibold text-slate-900 line-clamp-2">{ex.companyName}</h3>
+                                </div>
                                 {Array.isArray(ex.subCategories) && ex.subCategories.length > 0 && (
-                                    <p className="text-xs text-slate-500 mb-1">Sub Categories: {ex.subCategories.join(', ')}</p>
+                                    <p className="text-xs text-slate-600 mb-1">Sub Categories: {ex.subCategories.join(', ')}</p>
                                 )}
-                                {ex.city && <p className="text-sm text-slate-500 flex items-center gap-1"><MapPinIcon2 className="h-3.5 w-3.5" />{ex.city}</p>}
-                                {ex.contactPerson && <p className="text-sm text-slate-500 mt-1">Contact: {ex.contactPerson}</p>}
+                                {ex.city && <p className="text-sm text-slate-600 flex items-center gap-1.5"><MapPinIcon2 className="h-3.5 w-3.5 text-indigo-500" />{ex.city}</p>}
+                                {ex.contactPerson && <p className="text-sm text-slate-600 mt-1">Contact: {ex.contactPerson}</p>}
                                 {ex.email && <p className="text-sm text-slate-500 truncate" title={ex.email}>{ex.email}</p>}
                                 {ex.booth && <p className="text-sm text-slate-700 font-medium mt-1">Booth: {ex.booth}</p>}
-                            </div>
-                        ))}
+                                <div className="mt-3 flex items-center justify-between">
+                                    <p className="text-xs text-indigo-700 font-semibold">View full profile</p>
+                                    <span className="text-xs text-slate-500">
+                                        {(ex.productImagesUrls?.length || 0) + (ex.companyLogoUrl ? 1 : 0)} image(s)
+                                    </span>
+                                </div>
+                                </div>
+                            </button>
+                            );
+                        })}
                     </div>
+                    {viewMode === 'grid' && filteredExhibitors.length > 6 && (
+                        <div className="mt-6 text-center">
+                            <button
+                                type="button"
+                                onClick={() => setShowAllExhibitorsView(true)}
+                                className="inline-flex items-center justify-center px-5 py-2.5 rounded-lg bg-indigo-600 text-white font-medium hover:bg-indigo-700 transition-colors"
+                            >
+                                View All Exhibitors ({filteredExhibitors.length})
+                            </button>
+                        </div>
+                    )}
+                    </>
                 ) : (
-                    <p className="text-gray-500">No exhibitors registered yet.</p>
+                    <p className="text-gray-500">
+                        {searchQuery.trim() ? 'No exhibitors match your search.' : 'No exhibitors registered yet.'}
+                    </p>
                 )}
             </div>
 
@@ -1323,28 +1442,51 @@ export const Exhibitor: React.FC = () => {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 {/* Contact info */}
                                 <div className="border border-gray-200 rounded-lg p-4">
-                                    <h3 className="font-semibold text-gray-900 mb-3">Contact</h3>
+                                    <h3 className="font-semibold text-gray-900 mb-3">Company & Contact</h3>
+                                    <p><span className="text-gray-600">Company:</span> {selectedExhibitor.companyName}</p>
                                     {selectedExhibitor.contactPerson && <p><span className="text-gray-600">Contact:</span> {selectedExhibitor.contactPerson}</p>}
+                                    {selectedExhibitor.designation && <p><span className="text-gray-600">Designation:</span> {selectedExhibitor.designation}</p>}
                                     {selectedExhibitor.email && <p><span className="text-gray-600">Email:</span> {selectedExhibitor.email}</p>}
+                                    {selectedExhibitor.alternateEmail && <p><span className="text-gray-600">Alternate Email:</span> {selectedExhibitor.alternateEmail}</p>}
                                     {selectedExhibitor.phone && <p><span className="text-gray-600">Phone:</span> {selectedExhibitor.phone}</p>}
+                                    {selectedExhibitor.alternatePhone && <p><span className="text-gray-600">Alternate Phone:</span> {selectedExhibitor.alternatePhone}</p>}
                                     {selectedExhibitor.category && <p><span className="text-gray-600">Category:</span> {selectedExhibitor.category}</p>}
                                     {Array.isArray(selectedExhibitor.subCategories) && selectedExhibitor.subCategories.length > 0 && (
                                         <p><span className="text-gray-600">Sub Categories:</span> {selectedExhibitor.subCategories.join(', ')}</p>
                                     )}
                                     {selectedExhibitor.city && <p><span className="text-gray-600">City:</span> {selectedExhibitor.city}</p>}
+                                    {selectedExhibitor.state && <p><span className="text-gray-600">State:</span> {selectedExhibitor.state}</p>}
+                                    {selectedExhibitor.country && <p><span className="text-gray-600">Country:</span> {selectedExhibitor.country}</p>}
+                                    {selectedExhibitor.pincode && <p><span className="text-gray-600">Pincode:</span> {selectedExhibitor.pincode}</p>}
+                                    {selectedExhibitor.address && <p><span className="text-gray-600">Address:</span> {selectedExhibitor.address}</p>}
                                     {selectedExhibitor.booth && <p><span className="text-gray-600">Booth:</span> {selectedExhibitor.booth}</p>}
+                                    <p><span className="text-gray-600">Status:</span> {selectedExhibitor.status}</p>
+                                    <p><span className="text-gray-600">Payment:</span> {selectedExhibitor.paymentStatus}</p>
+                                    {selectedExhibitor.website && (
+                                        <p>
+                                            <span className="text-gray-600">Website:</span>{' '}
+                                            <a
+                                                href={selectedExhibitor.website}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-purple-600 hover:text-purple-700"
+                                            >
+                                                {selectedExhibitor.website}
+                                            </a>
+                                        </p>
+                                    )}
                                 </div>
                                 {/* Company Logo (if available from DB in future) */}
-                                {(selectedExhibitor as any).company_logo_url && (
+                                {selectedExhibitor.companyLogoUrl && (
                                     <div className="border border-gray-200 rounded-lg p-4">
                                         <h3 className="font-semibold text-gray-900 mb-3">Company Logo</h3>
                                         <img 
-                                            src={(selectedExhibitor as any).company_logo_url} 
+                                            src={selectedExhibitor.companyLogoUrl}
                                             alt="Company Logo"
                                             className="w-full h-48 object-cover rounded-lg"
                                         />
                                         <a 
-                                            href={(selectedExhibitor as any).company_logo_url}
+                                            href={selectedExhibitor.companyLogoUrl}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             className="inline-block mt-2 text-purple-600 hover:text-purple-700 text-sm"
@@ -1355,11 +1497,11 @@ export const Exhibitor: React.FC = () => {
                                 )}
 
                                 {/* Product Images */}
-                                {(selectedExhibitor as any).product_images_urls && (selectedExhibitor as any).product_images_urls.length > 0 && (
+                                {selectedExhibitor.productImagesUrls && selectedExhibitor.productImagesUrls.length > 0 && (
                                     <div className="border border-gray-200 rounded-lg p-4">
                                         <h3 className="font-semibold text-gray-900 mb-3">Product Images</h3>
                                         <div className="grid grid-cols-2 gap-2">
-                                            {(selectedExhibitor as any).product_images_urls.map((url: string, index: number) => (
+                                            {selectedExhibitor.productImagesUrls.map((url, index) => (
                                                 <div key={index} className="relative">
                                                     <img 
                                                         src={url} 
@@ -1384,9 +1526,9 @@ export const Exhibitor: React.FC = () => {
                                 <div className="border border-gray-200 rounded-lg p-4">
                                     <h3 className="font-semibold text-gray-900 mb-3">Documents</h3>
                                     <div className="space-y-2">
-                                        {(selectedExhibitor as any).company_profile_url && (
+                                        {selectedExhibitor.companyProfileUrl && (
                                             <a 
-                                                href={(selectedExhibitor as any).company_profile_url}
+                                                href={selectedExhibitor.companyProfileUrl}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="flex items-center space-x-2 text-purple-600 hover:text-purple-700"
@@ -1395,9 +1537,9 @@ export const Exhibitor: React.FC = () => {
                                                 <span>Company Profile</span>
                                             </a>
                                         )}
-                                        {(selectedExhibitor as any).gst_certificate_url && (
+                                        {selectedExhibitor.gstCertificateUrl && (
                                             <a 
-                                                href={(selectedExhibitor as any).gst_certificate_url}
+                                                href={selectedExhibitor.gstCertificateUrl}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="flex items-center space-x-2 text-purple-600 hover:text-purple-700"
@@ -1406,9 +1548,9 @@ export const Exhibitor: React.FC = () => {
                                                 <span>GST Certificate</span>
                                             </a>
                                         )}
-                                        {(selectedExhibitor as any).pan_card_url && (
+                                        {selectedExhibitor.panCardUrl && (
                                             <a 
-                                                href={(selectedExhibitor as any).pan_card_url}
+                                                href={selectedExhibitor.panCardUrl}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="flex items-center space-x-2 text-purple-600 hover:text-purple-700"
@@ -1417,9 +1559,9 @@ export const Exhibitor: React.FC = () => {
                                                 <span>PAN Card</span>
                                             </a>
                                         )}
-                                        {(selectedExhibitor as any).product_catalog_url && (
+                                        {selectedExhibitor.productCatalogUrl && (
                                             <a 
-                                                href={(selectedExhibitor as any).product_catalog_url}
+                                                href={selectedExhibitor.productCatalogUrl}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="flex items-center space-x-2 text-purple-600 hover:text-purple-700"
@@ -1428,8 +1570,105 @@ export const Exhibitor: React.FC = () => {
                                                 <span>Product Catalog</span>
                                             </a>
                                         )}
+                                        {!selectedExhibitor.companyProfileUrl &&
+                                            !selectedExhibitor.gstCertificateUrl &&
+                                            !selectedExhibitor.panCardUrl &&
+                                            !selectedExhibitor.productCatalogUrl && (
+                                                <p className="text-sm text-gray-500">No documents uploaded yet.</p>
+                                            )}
                                     </div>
                                 </div>
+                                {selectedExhibitor.companyDescription && (
+                                    <div className="border border-gray-200 rounded-lg p-4 md:col-span-2">
+                                        <h3 className="font-semibold text-gray-900 mb-3">About the company</h3>
+                                        <p className="text-sm text-gray-700 whitespace-pre-line">{selectedExhibitor.companyDescription}</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {showAllExhibitorsView && (
+                <div className="fixed inset-0 bg-black/60 z-50 p-4 md:p-6">
+                    <div className="bg-white rounded-2xl w-full h-full overflow-hidden flex flex-col">
+                        <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
+                            <div>
+                                <h2 className="text-2xl font-bold text-gray-900">All Exhibitors</h2>
+                                <p className="text-sm text-gray-600 mt-1">
+                                    Showing {filteredExhibitors.length} exhibitors
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => setShowAllExhibitorsView(false)}
+                                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                                aria-label="Close all exhibitors view"
+                            >
+                                <X className="h-6 w-6" />
+                            </button>
+                        </div>
+                        <div className="p-6 overflow-y-auto">
+                            <div className={viewMode === 'grid' ? 'grid sm:grid-cols-2 lg:grid-cols-3 gap-4' : 'space-y-4'}>
+                                {filteredExhibitors.map((ex) => {
+                                    const previewImage = ex.companyLogoUrl || ex.productImagesUrls?.[0] || null;
+                                    return (
+                                        <button
+                                            key={`all-${ex.id}`}
+                                            type="button"
+                                            onClick={() => {
+                                                setSelectedExhibitor(ex);
+                                                setShowFileModal(true);
+                                            }}
+                                            className={`text-left bg-gradient-to-br from-white via-indigo-50/40 to-violet-50/50 border border-indigo-100 rounded-2xl overflow-hidden hover:border-indigo-200 hover:shadow-lg hover:shadow-indigo-100/50 transition-all ${
+                                                viewMode === 'list' ? 'w-full flex flex-col md:flex-row' : ''
+                                            }`}
+                                        >
+                                            <div className={`relative bg-slate-100 ${viewMode === 'list' ? 'h-48 md:h-auto md:w-64 md:shrink-0' : 'h-40 w-full'}`}>
+                                                {previewImage ? (
+                                                    <img
+                                                        src={previewImage}
+                                                        alt={`${ex.companyName} showcase`}
+                                                        className="h-full w-full object-cover"
+                                                    />
+                                                ) : (
+                                                    <div className="h-full w-full bg-gradient-to-r from-indigo-200 via-purple-200 to-pink-200 flex items-center justify-center">
+                                                        <div className="text-center px-4">
+                                                            <Image className="h-7 w-7 text-indigo-700 mx-auto mb-2" />
+                                                            <p className="text-xs text-indigo-800 font-medium">Portfolio image not uploaded yet</p>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/10 to-transparent" />
+                                                {ex.category && (
+                                                    <span className="absolute top-3 left-3 text-[11px] bg-white/90 text-indigo-700 px-2.5 py-1 rounded-full font-medium border border-indigo-100">
+                                                        {ex.category}
+                                                    </span>
+                                                )}
+                                                <span className="absolute top-3 right-3 text-[11px] bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full font-semibold capitalize">
+                                                    {ex.status}
+                                                </span>
+                                            </div>
+                                            <div className={`p-5 ${viewMode === 'list' ? 'flex-1' : ''}`}>
+                                                <div className="flex items-start justify-between gap-2 mb-2">
+                                                    <h3 className="font-semibold text-slate-900 line-clamp-2">{ex.companyName}</h3>
+                                                </div>
+                                                {Array.isArray(ex.subCategories) && ex.subCategories.length > 0 && (
+                                                    <p className="text-xs text-slate-600 mb-1">Sub Categories: {ex.subCategories.join(', ')}</p>
+                                                )}
+                                                {ex.city && <p className="text-sm text-slate-600 flex items-center gap-1.5"><MapPinIcon2 className="h-3.5 w-3.5 text-indigo-500" />{ex.city}</p>}
+                                                {ex.contactPerson && <p className="text-sm text-slate-600 mt-1">Contact: {ex.contactPerson}</p>}
+                                                {ex.email && <p className="text-sm text-slate-500 truncate" title={ex.email}>{ex.email}</p>}
+                                                {ex.booth && <p className="text-sm text-slate-700 font-medium mt-1">Booth: {ex.booth}</p>}
+                                                <div className="mt-3 flex items-center justify-between">
+                                                    <p className="text-xs text-indigo-700 font-semibold">View full profile</p>
+                                                    <span className="text-xs text-slate-500">
+                                                        {(ex.productImagesUrls?.length || 0) + (ex.companyLogoUrl ? 1 : 0)} image(s)
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </button>
+                                    );
+                                })}
                             </div>
                         </div>
                     </div>
