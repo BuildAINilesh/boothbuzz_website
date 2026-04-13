@@ -7,9 +7,10 @@ import { Exhibitor } from './exhibitor';
 import { AuthProvider } from './contexts/AuthContext';
 import { BannerCarousel } from './components/BannerCarousel';
 import { AdSlot } from './components/AdSlot';
+import { ExhibitorDashboard } from './components/ExhibitorDashboard';
 import logo from './assets/newlogo.png';
 
-const NAV_LINKS = ['Home', 'About', 'Gallery', 'Events', 'Exhibitors', 'Contact'];
+const NAV_LINKS = ['Home', 'About', 'Gallery', 'Events', 'Dashboard', 'Exhibitors', 'Contact'];
 
 function App() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -35,48 +36,75 @@ function App() {
 
   return (
     <AuthProvider>
-      <div className="min-h-screen bg-white">
-        <nav className="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur border-b border-slate-200/80">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center h-16">
-              <button onClick={() => scrollToSection('home')} className="flex items-center gap-2">
-                <img src={logo} alt="BoothBuzz" className="h-40 w-40 object-contain" />
+      <div className="min-h-screen bg-background text-on-surface font-body">
+        <nav className="fixed top-0 left-0 right-0 z-50 bg-surface-container-lowest/90 backdrop-blur-md border-b border-outline-variant/15 ghost-border">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center h-16 gap-4">
+              <button
+                type="button"
+                onClick={() => scrollToSection('home')}
+                className="flex items-center gap-2 shrink-0"
+              >
+                <img src={logo} alt="BoothBuzz" className="h-9 w-auto max-h-10 object-contain" />
               </button>
-              <div className="hidden md:flex items-center gap-8">
+              <div className="hidden md:flex items-center gap-6 lg:gap-8">
                 {NAV_LINKS.map((item) => (
                   <button
                     key={item}
+                    type="button"
                     onClick={() => scrollToSection(item.toLowerCase())}
-                    className={`text-sm font-medium transition-colors ${
+                    className={`text-sm font-semibold font-headline transition-colors ${
                       activeSection === item.toLowerCase()
-                        ? 'text-indigo-600'
-                        : 'text-slate-600 hover:text-slate-900'
+                        ? 'text-primary'
+                        : 'text-on-surface-variant hover:text-on-surface'
                     }`}
                   >
                     {item}
                   </button>
                 ))}
               </div>
-              <button
-                onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className="md:hidden p-2 text-slate-600"
-                aria-label="Toggle menu"
-              >
-                {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => scrollToSection('exhibitor-registration')}
+                  className="hidden sm:inline-flex items-center rounded-xl bg-primary px-4 py-2 text-sm font-semibold font-headline text-on-primary shadow-lg shadow-primary/20 hover:opacity-90 transition-opacity"
+                >
+                  Register
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsMenuOpen(!isMenuOpen)}
+                  className="md:hidden p-2 text-on-surface-variant"
+                  aria-label="Toggle menu"
+                >
+                  {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+                </button>
+              </div>
             </div>
           </div>
           {isMenuOpen && (
-            <div className="md:hidden border-t border-slate-200 bg-white px-4 py-3 space-y-1">
+            <div className="md:hidden border-t border-outline-variant/15 bg-surface-container-lowest px-4 py-3 space-y-1">
               {NAV_LINKS.map((item) => (
                 <button
                   key={item}
+                  type="button"
                   onClick={() => scrollToSection(item.toLowerCase())}
-                  className={`block w-full text-left py-2 text-sm font-medium ${activeSection === item.toLowerCase() ? 'text-indigo-600' : 'text-slate-700 hover:text-slate-900'}`}
+                  className={`block w-full text-left py-2 text-sm font-medium font-headline ${
+                    activeSection === item.toLowerCase()
+                      ? 'text-primary'
+                      : 'text-on-surface-variant hover:text-on-surface'
+                  }`}
                 >
                   {item}
                 </button>
               ))}
+              <button
+                type="button"
+                onClick={() => scrollToSection('exhibitor-registration')}
+                className="mt-2 w-full rounded-xl bg-primary py-2.5 text-sm font-semibold text-on-primary"
+              >
+                Register as exhibitor
+              </button>
             </div>
           )}
         </nav>
@@ -140,6 +168,12 @@ function App() {
 
           <section id="events" className="py-24 bg-white">
             <Events />
+          </section>
+
+          <section id="dashboard" className="py-24 bg-surface-container-low/30 border-y border-outline-variant/10">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <ExhibitorDashboard onScrollToEvents={() => scrollToSection('events')} />
+            </div>
           </section>
 
           <section id="exhibitors" className="py-24 bg-indigo-50/30">

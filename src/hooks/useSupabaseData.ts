@@ -2,6 +2,17 @@ import { useState, useEffect } from 'react';
 import { supabase, isSupabaseConfigured } from '../supabase';
 import { User, Event, Venue, Vendor, Exhibitor, Testimonial, WebsiteAd } from '../types';
 
+/** Trim, strip BOM, strip wrapping quotes (common DB/CSV paste). */
+function scrubEventImageCell(v: unknown): string | null {
+  if (v == null) return null;
+  let s = String(v).replace(/^\uFEFF/, '').trim();
+  if (!s) return null;
+  if ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) {
+    s = s.slice(1, -1).trim();
+  }
+  return s || null;
+}
+
 /** First non-empty string from row (supports alternate DB column names). */
 function pickRawEventImage(row: Record<string, unknown>): string | null {
   const keys = [
@@ -14,12 +25,43 @@ function pickRawEventImage(row: Record<string, unknown>): string | null {
     'banner_url',
   ] as const;
   for (const k of keys) {
-    const v = row[k];
-    if (v == null) continue;
-    const s = String(v).trim();
+    const s = scrubEventImageCell(row[k]);
     if (s) return s;
   }
   return null;
+}
+
+const supabaseProjectBase =
+  typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_URL
+    ? String(import.meta.env.VITE_SUPABASE_URL).replace(/\/$/, '')
+    : '';
+
+/** Fix `https:/host` / `http:/host` (missing slash) from bad exports or DB paste. */
+function fixMalformedHttpProtocol(s: string): string {
+  return s
+    .replace(/^https:\/(?!\/)/i, 'https://')
+    .replace(/^http:\/(?!\/)/i, 'http://');
+}
+
+/**
+ * DB sometimes stores a JSON array string, e.g. `["https://..."]` or broken `["https:/...`.
+ * Extract a single URL string; never pass that whole value to Storage as an object key.
+ */
+function unwrapJsonArrayImageString(input: string): string {
+  const trimmed = input.trim();
+  if (!trimmed.startsWith('[')) return trimmed;
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (Array.isArray(parsed)) {
+      const first = parsed.find((x) => typeof x === 'string' && String(x).trim());
+      if (first != null) return String(first).trim();
+    }
+  } catch {
+    // Invalid JSON — pull first http(s) segment
+    const m = trimmed.match(/https?:\/[^"'\]\s,}]+/i);
+    if (m) return m[0].trim();
+  }
+  return trimmed;
 }
 
 /**
@@ -28,9 +70,25 @@ function pickRawEventImage(row: Record<string, unknown>): string | null {
  */
 function resolveEventImageForDisplay(raw: string | null): string | null {
   if (!raw) return null;
-  const s = raw.trim();
+  let s = raw.trim();
   if (!s) return null;
-  if (/^https?:\/\//i.test(s) || s.startsWith('//') || s.startsWith('data:')) return s;
+  s = scrubEventImageCell(s) ?? s;
+  if (!s) return null;
+
+  s = unwrapJsonArrayImageString(s);
+  s = fixMalformedHttpProtocol(s);
+
+  if (/^https?:\/\//i.test(s) || s.startsWith('data:')) return s;
+  if (s.startsWith('//')) return `https:${s}`;
+
+  if (supabaseProjectBase) {
+    if (s.startsWith('/storage/v1')) {
+      return `${supabaseProjectBase}${s}`;
+    }
+    if (s.startsWith('storage/v1/')) {
+      return `${supabaseProjectBase}/${s}`;
+    }
+  }
 
   const slash = s.indexOf('/');
   if (slash > 0 && !s.includes('://')) {
@@ -41,11 +99,83 @@ function resolveEventImageForDisplay(raw: string | null): string | null {
     }
   }
 
+  // Looks like a URL fragment but not a valid storage path — do not call Storage (avoids InvalidKey 400).
+  if (/https?:/i.test(s)) {
+    const fixed = fixMalformedHttpProtocol(s);
+    if (/^https?:\/\//i.test(fixed)) return fixed;
+    return null;
+  }
+
   return supabase.storage.from('exhibitor-images').getPublicUrl(s).data.publicUrl;
 }
 
 function mapEventImageFromRow(row: Record<string, unknown>): string | null {
   return resolveEventImageForDisplay(pickRawEventImage(row));
+}
+
+/** Cover from events.event_image_url only (full URL for img src). */
+function mapEventImageUrlColumn(row: Record<string, unknown>): string | null {
+  for (const key of ['event_image_url', 'eventImageUrl'] as const) {
+    const scrubbed = scrubEventImageCell(row[key]);
+    if (scrubbed) {
+      const resolved = resolveEventImageForDisplay(scrubbed);
+      if (resolved) return resolved;
+    }
+  }
+  return null;
+}
+
+/** Merge layout_image_url + layout_image_urls, resolve storage paths, dedupe. */
+function mapEventLayoutImagesFromRow(row: Record<string, unknown>): string[] | null {
+  const fromArray = normalizeExhibitorUrlArray(row.layout_image_urls) ?? [];
+  const single = row.layout_image_url;
+  const fromSingle: string[] = [];
+  if (single != null && String(single).trim()) {
+    const s = String(single).trim();
+    if (s.startsWith('[')) {
+      const parsed = normalizeExhibitorUrlArray(s);
+      if (parsed) fromSingle.push(...parsed);
+    } else {
+      fromSingle.push(s);
+    }
+  }
+  const merged = [...fromSingle, ...fromArray];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of merged) {
+    const url = resolveEventImageForDisplay(String(raw).trim());
+    if (url && !seen.has(url)) {
+      seen.add(url);
+      out.push(url);
+    }
+  }
+  return out.length ? out : null;
+}
+
+/** Parse text[], json array, or single URL string for exhibitor image list columns. */
+function normalizeExhibitorUrlArray(raw: unknown): string[] | null {
+  if (raw == null) return null;
+  if (Array.isArray(raw)) {
+    const cleaned = raw.map((v) => String(v).trim()).filter(Boolean);
+    return cleaned.length ? cleaned : null;
+  }
+  if (typeof raw === 'string') {
+    const t = raw.trim();
+    if (!t) return null;
+    if (t.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(t);
+        if (Array.isArray(parsed)) {
+          const cleaned = parsed.map((v) => String(v).trim()).filter(Boolean);
+          return cleaned.length ? cleaned : null;
+        }
+      } catch {
+        return [t];
+      }
+    }
+    return [t];
+  }
+  return null;
 }
 
 function normalizeSubCategories(raw: unknown): string[] | null {
@@ -318,6 +448,8 @@ export const useEvents = (displayFilter: EventsDisplayFilter = 'visible') => {
           createdBy: row.created_by ?? null,
           totalRevenue: Number(row.total_revenue ?? 0),
           image: mapEventImageFromRow(row),
+          eventImageUrl: mapEventImageUrlColumn(row),
+          layoutImageUrls: mapEventLayoutImagesFromRow(row),
           sponsorName: joinedSponsor?.name ?? row.sponsor_name ?? null,
           sponsorLogoUrl: joinedSponsor?.logo ?? row.sponsor_logo_url ?? null,
           sponsorRole: joinedSponsor?.role ?? null,
@@ -417,9 +549,14 @@ export const useExhibitors = () => {
     city: exhibitor.city,
     booth: exhibitor.booth,
     companyLogoUrl: exhibitor.company_logo_url ?? null,
+    portfolioImageUrl:
+      exhibitor.portfolio_image_url != null && String(exhibitor.portfolio_image_url).trim()
+        ? String(exhibitor.portfolio_image_url).trim()
+        : null,
     productImagesUrls: Array.isArray(exhibitor.product_images_urls)
       ? exhibitor.product_images_urls.map((item: unknown) => String(item).trim()).filter(Boolean)
       : null,
+    imageUrls: normalizeExhibitorUrlArray(exhibitor.image_urls),
     companyProfileUrl: exhibitor.company_profile_url ?? null,
     gstCertificateUrl: exhibitor.gst_certificate_url ?? null,
     panCardUrl: exhibitor.pan_card_url ?? null,

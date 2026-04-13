@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "secondary-container": "#d5e0f8",
+                    "tertiary-fixed": "#d3e5f1",
+                    "on-error": "#ffffff",
+                    "secondary": "#545f73",
+                    "error-container": "#ffdad6",
+                    "primary": "#3525cd",
+                    "surface-variant": "#d3e4fe",
+                    "primary-container": "#4f46e5",
+                    "outline-variant": "#c7c4d8",
+                    "on-background": "#0b1c30",
+                    "primary-fixed-dim": "#c3c0ff",
+                    "secondary-fixed": "#d8e3fb",
+                    "inverse-surface": "#213145",
+                    "outline": "#777587",
+                    "on-surface": "#0b1c30",
+                    "surface-container-high": "#dce9ff",
+                    "background": "#f8f9ff",
+                    "on-secondary-fixed": "#111c2d",
+                    "on-secondary": "#ffffff",
+                    "surface-container-low": "#eff4ff",
+                    "surface-bright": "#f8f9ff",
+                    "on-primary-fixed": "#0f0069",
+                    "primary-fixed": "#e2dfff",
+                    "on-tertiary-fixed-variant": "#384953",
+                    "on-secondary-fixed-variant": "#3c475a",
+                    "tertiary-fixed-dim": "#b7c9d5",
+                    "on-primary": "#ffffff",
+                    "on-primary-fixed-variant": "#3323cc",
+                    "on-tertiary-container": "#ccdee9",
+                    "surface": "#f8f9ff",
+                    "surface-tint": "#4d44e3",
+                    "surface-container": "#e5eeff",
+                    "tertiary": "#3a4a54",
+                    "surface-container-lowest": "#ffffff",
+                    "error": "#ba1a1a",
+                    "secondary-fixed-dim": "#bcc7de",
+                    "on-secondary-container": "#586377",
+                    "on-tertiary-fixed": "#0c1e26",
+                    "on-surface-variant": "#464555",
+                    "surface-dim": "#cbdbf5",
+                    "on-error-container": "#93000a",
+                    "inverse-on-surface": "#eaf1ff",
+                    "on-tertiary": "#ffffff",
+                    "tertiary-container": "#51626c",
+                    "on-primary-container": "#dad7ff",
+                    "inverse-primary": "#c3c0ff",
+                    "surface-container-highest": "#d3e4fe"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "fontFamily": {
+                    "headline": ["Plus Jakarta Sans"],
+                    "body": ["Inter"],
+                    "label": ["Inter"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .tonal-layering-via-bg-surface-container-low {
+            background-color: #eff4ff;
+        }
+        .ghost-border {
+            border: 1px solid rgba(199, 196, 216, 0.15);
+        }
+    </style>
+</head>
+<body class="bg-surface font-body text-on-surface">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl shadow-[0_32px_64px_rgba(11,28,48,0.05)]">
+<nav class="flex justify-between items-center w-full px-8 py-4 max-w-full mx-auto">
+<div class="text-2xl font-extrabold tracking-tighter text-indigo-700 dark:text-indigo-300 font-headline">BoothBuzz</div>
+<div class="hidden md:flex items-center gap-8">
+<a class="text-indigo-700 dark:text-indigo-300 font-bold border-b-2 border-indigo-600 font-headline py-1 transition-colors duration-300" href="#">Explore</a>
+<a class="text-slate-600 dark:text-slate-400 font-medium font-headline hover:text-indigo-500 transition-colors duration-300" href="#">Exhibitors</a>
+<a class="text-slate-600 dark:text-slate-400 font-medium font-headline hover:text-indigo-500 transition-colors duration-300" href="#">Past Events</a>
+<a class="text-slate-600 dark:text-slate-400 font-medium font-headline hover:text-indigo-500 transition-colors duration-300" href="#">Dashboard</a>
+</div>
+<div class="flex items-center gap-6">
+<div class="hidden lg:flex items-center bg-surface-container-low px-4 py-2 rounded-full ghost-border">
+<span class="material-symbols-outlined text-outline text-xl">search</span>
+<input class="bg-transparent border-none focus:ring-0 text-sm ml-2 w-48" placeholder="Search events..." type="text"/>
+</div>
+<button class="bg-indigo-600 text-white px-6 py-2.5 rounded-lg font-semibold hover:bg-indigo-700 transition-transform active:scale-95">Register Now</button>
+</div>
+</nav>
+</header>
+<main class="pt-32 pb-24 px-8 max-w-7xl mx-auto">
+<!-- Hero Section: Editorial Style -->
+<section class="mb-20">
+<div class="flex flex-col md:flex-row items-end justify-between gap-8">
+<div class="max-w-2xl">
+<span class="text-primary font-bold tracking-widest uppercase text-sm mb-4 block">Curation 2024</span>
+<h1 class="text-6xl font-extrabold font-headline tracking-tighter text-on-background leading-none mb-6">
+                        The Future of <span class="text-indigo-600">Exhibitions.</span>
+</h1>
+<p class="text-lg text-secondary leading-relaxed max-w-lg">
+                        Discover a handpicked selection of upcoming boutique events, high-fashion showcases, and artisanal jewelry exhibitions.
+                    </p>
+</div>
+<div class="flex gap-4">
+<button class="w-12 h-12 rounded-full border border-outline-variant/30 flex items-center justify-center text-primary hover:bg-primary hover:text-white transition-all">
+<span class="material-symbols-outlined">arrow_back</span>
+</button>
+<button class="w-12 h-12 rounded-full border border-outline-variant/30 flex items-center justify-center text-primary hover:bg-primary hover:text-white transition-all">
+<span class="material-symbols-outlined">arrow_forward</span>
+</button>
+</div>
+</div>
+</section>
+<!-- Dynamic Filters Bar -->
+<section class="mb-12 bg-surface-container-low rounded-2xl p-6 flex flex-wrap items-center gap-6 shadow-sm">
+<div class="flex-1 min-w-[200px]">
+<label class="block text-xs font-bold text-outline uppercase mb-2 ml-1">City</label>
+<div class="relative">
+<select class="w-full bg-surface-container-lowest border-none rounded-xl py-3 px-4 text-on-surface focus:ring-2 focus:ring-primary/20 appearance-none font-medium">
+<option>All Cities</option>
+<option>New York</option>
+<option>London</option>
+<option>Paris</option>
+<option>Tokyo</option>
+</select>
+<span class="material-symbols-outlined absolute right-3 top-3 pointer-events-none text-outline">expand_more</span>
+</div>
+</div>
+<div class="flex-[2] min-w-[300px]">
+<label class="block text-xs font-bold text-outline uppercase mb-2 ml-1">Category</label>
+<div class="flex flex-wrap gap-2">
+<button class="px-4 py-2 bg-primary text-white rounded-full text-sm font-semibold transition-all">All Events</button>
+<button class="px-4 py-2 bg-surface-container-lowest text-secondary rounded-full text-sm font-medium hover:bg-primary-fixed hover:text-primary transition-all">Fashion</button>
+<button class="px-4 py-2 bg-surface-container-lowest text-secondary rounded-full text-sm font-medium hover:bg-primary-fixed hover:text-primary transition-all">Jewellery</button>
+<button class="px-4 py-2 bg-surface-container-lowest text-secondary rounded-full text-sm font-medium hover:bg-primary-fixed hover:text-primary transition-all">Tech</button>
+<button class="px-4 py-2 bg-surface-container-lowest text-secondary rounded-full text-sm font-medium hover:bg-primary-fixed hover:text-primary transition-all">Art</button>
+</div>
+</div>
+<div class="flex-1 min-w-[200px]">
+<label class="block text-xs font-bold text-outline uppercase mb-2 ml-1">Date</label>
+<div class="relative">
+<input class="w-full bg-surface-container-lowest border-none rounded-xl py-3 px-4 text-on-surface focus:ring-2 focus:ring-primary/20 font-medium" type="date"/>
+</div>
+</div>
+</section>
+<!-- Events Bento Grid -->
+<section class="grid grid-cols-1 md:grid-cols-12 gap-8">
+<!-- Featured Event Card -->
+<div class="md:col-span-8 group relative overflow-hidden rounded-2xl bg-surface-container-lowest shadow-[0_32px_64px_rgba(11,28,48,0.03)] hover:shadow-[0_32px_64px_rgba(11,28,48,0.08)] transition-all duration-500">
+<div class="aspect-[16/9] overflow-hidden">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="Modern high-end convention hall with warm ambient lighting and sleek architectural lines during a professional corporate event" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDUCQCxeBPyy1mKkzDvEcPCTFBNUTm0HKLBUXKIkdTMBN8xmWiegAT8KA7fVBIGp84FBt-5o0z2HbNDMgP2fmAogDrO9eCLlB9kD7kuGhVfJMzGotjakjpXFZwowBZNRJkAR1stGSFleKB61EcfBsFWdqy4NQd2TO4Mb9UhDVuGkQM4j7-oY1ff3cipwxuUFcTM67mayHpoJq4HLThXUMOqmd9XWaZFKwDG65g1UJlqahoerUZCNRydKMz-ZSEd2B3TBVT26AbKNdg"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
+</div>
+<div class="absolute bottom-0 left-0 p-10 w-full text-white">
+<div class="flex items-center gap-3 mb-4">
+<span class="bg-indigo-600 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest">Featured</span>
+<span class="text-sm font-medium flex items-center gap-1"><span class="material-symbols-outlined text-lg">calendar_today</span> Oct 12, 2024</span>
+</div>
+<h3 class="text-4xl font-extrabold font-headline mb-4">The Global Design Summit</h3>
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2 text-white/80">
+<span class="material-symbols-outlined">location_on</span>
+<span>Manhattan, New York</span>
+</div>
+<button class="bg-white text-primary px-8 py-3 rounded-xl font-bold hover:bg-primary hover:text-white transition-all flex items-center gap-2">
+                            View Details <span class="material-symbols-outlined">arrow_right_alt</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Side Card 1 -->
+<div class="md:col-span-4 flex flex-col bg-surface-container-lowest rounded-2xl p-6 shadow-sm hover:shadow-md transition-all group">
+<div class="rounded-xl overflow-hidden mb-6 aspect-square">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="Luxury fashion boutique display with elegant mannequins and soft golden backlighting in a minimalist designer store" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDy6D2p_uilmPQ_6S2WqPCpJnoaiX9KCEIgRGk8V4U675yXjCDVqs9BHRzC5doqGdPkmLu3JPvK6f7Ecjpi0tf7mqV8z20HmfNuJ4qwImkK6eNB7e4mGMYXXe34JKMir3BA1ELxdSHOyri7QUFrjLpb1MZlRbuUUg04e7KJQY-jYfbleu4wHg6OQLAqB4JCxq1F-h9AZcpGlYD4GEL-Se5rPdZyOieDiQiFzwDdM7ZtMcq4vI75vzKOhkNlQT9UuVCV-7zex3IR_mY"/>
+</div>
+<div class="flex items-center justify-between mb-3">
+<span class="text-xs font-bold text-primary uppercase tracking-widest bg-primary-fixed px-2 py-1 rounded">Fashion</span>
+<span class="text-xs font-medium text-secondary">Nov 04, 2024</span>
+</div>
+<h4 class="text-xl font-bold font-headline mb-4 text-on-background">Avant-Garde Runway 2024</h4>
+<div class="flex items-center gap-2 text-secondary text-sm mb-6">
+<span class="material-symbols-outlined text-lg">location_on</span>
+<span>London, UK</span>
+</div>
+<button class="w-full py-3 rounded-xl border border-primary text-primary font-bold hover:bg-primary hover:text-white transition-all mt-auto">View Details</button>
+</div>
+<!-- Event Row: Regular Cards -->
+<div class="md:col-span-4 group bg-surface-container-lowest rounded-2xl p-6 shadow-sm hover:shadow-md transition-all">
+<div class="rounded-xl overflow-hidden mb-6 aspect-[4/3]">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="High-end jewelry exhibition featuring diamond rings and gold necklaces under sparkling spot lights on velvet displays" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCx0XoLrseWG8iUwxjA423dliBcFOQmo6FkIhcHR8MY3F5rVngF6m_Q9duCp05hsxCDPlwMKH77z5irckMrdS2DMZcUFVtoISgW73i0Mf8LBztduukiJGcdG38-QlMGYUp_FcbKDnD0PDnsUMQ7VuytGvJa7eJjxTqBPDMRpkEt9wZHeY-X4iiKozLvEB9qsw4qAue4KEarhL5wAM6NysS1W1tNVcItQL3H6DVC-laGvPdwXMc0Lar0R4xM3CAtduxOqKwqDqge3bk"/>
+</div>
+<div class="flex items-center justify-between mb-3">
+<span class="text-xs font-bold text-primary uppercase tracking-widest bg-primary-fixed px-2 py-1 rounded">Jewellery</span>
+<span class="text-xs font-medium text-secondary">Dec 15, 2024</span>
+</div>
+<h4 class="text-xl font-bold font-headline mb-4 text-on-background">The Diamond Gala</h4>
+<div class="flex items-center gap-2 text-secondary text-sm mb-6">
+<span class="material-symbols-outlined text-lg">location_on</span>
+<span>Paris, France</span>
+</div>
+<button class="w-full py-3 rounded-xl bg-surface-container-low text-on-surface font-bold hover:bg-primary-container hover:text-white transition-all mt-auto">View Details</button>
+</div>
+<div class="md:col-span-4 group bg-surface-container-lowest rounded-2xl p-6 shadow-sm hover:shadow-md transition-all">
+<div class="rounded-xl overflow-hidden mb-6 aspect-[4/3]">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="Large-scale tech conference with futuristic stage design, neon blue lights, and large digital screens" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBemBd2Wc8FNzRtu9xxb2AxAu4KCvyzMJ9LZl7413vAkn63Fq0KNovbrPK8aPJAAL9PLCqUc_gKX6U6PwWrcxw5PgTW-2pBhOUN_q3bJD_v3vdhoPdZonju1W-wbqS9oiDDWPm8Mi5xhX_jsJiU07yzbA6b-2AYb_1HS8sLxUgpumuz4ucCsT5KqGv-IGJzoOhsUosF02ORJEKUz9OsKcaKFx9quiVMsOWZA8fosgHEZH-9eNaPXApKkQbVw1ii-5f2ckIam2WB1cE"/>
+</div>
+<div class="flex items-center justify-between mb-3">
+<span class="text-xs font-bold text-primary uppercase tracking-widest bg-primary-fixed px-2 py-1 rounded">Tech Expo</span>
+<span class="text-xs font-medium text-secondary">Jan 20, 2025</span>
+</div>
+<h4 class="text-xl font-bold font-headline mb-4 text-on-background">BoothBuzz Innovation Summit</h4>
+<div class="flex items-center gap-2 text-secondary text-sm mb-6">
+<span class="material-symbols-outlined text-lg">location_on</span>
+<span>Tokyo, Japan</span>
+</div>
+<button class="w-full py-3 rounded-xl bg-surface-container-low text-on-surface font-bold hover:bg-primary-container hover:text-white transition-all mt-auto">View Details</button>
+</div>
+<div class="md:col-span-4 group bg-surface-container-lowest rounded-2xl p-6 shadow-sm hover:shadow-md transition-all">
+<div class="rounded-xl overflow-hidden mb-6 aspect-[4/3]">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="Contemporary art gallery with abstract paintings on white walls and polished concrete floors with natural light" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAslo23nGEOJoy8uNHIuKdD5ZfbLp9cXitxxNxRaxrHu939nDmcuXsYwu4FTEYGSo3g3BLYd77NfE2xyUrhF4iOUzdP2emT4mceIvgxu3swIVAOOYjmefLkAnhHBFM4NhSr0OoU4WBnjuzahxPB36Rkaq9_GwvWjPOFgX0xM6IiBP7n_Do3mtwd4S-B7cfCQ1YQeRQYA7mirTUhvJntorppecm_jlmxUKHvoGJt54tmWGfJgEDdifT8gY49cormKqeyoYYTs50nN0g"/>
+</div>
+<div class="flex items-center justify-between mb-3">
+<span class="text-xs font-bold text-primary uppercase tracking-widest bg-primary-fixed px-2 py-1 rounded">Art</span>
+<span class="text-xs font-medium text-secondary">Feb 08, 2025</span>
+</div>
+<h4 class="text-xl font-bold font-headline mb-4 text-on-background">Neo-Expressionist Showcase</h4>
+<div class="flex items-center gap-2 text-secondary text-sm mb-6">
+<span class="material-symbols-outlined text-lg">location_on</span>
+<span>Berlin, Germany</span>
+</div>
+<button class="w-full py-3 rounded-xl bg-surface-container-low text-on-surface font-bold hover:bg-primary-container hover:text-white transition-all mt-auto">View Details</button>
+</div>
+</section>
+<!-- Load More Section -->
+<div class="mt-20 flex flex-col items-center">
+<p class="text-secondary font-medium mb-6">Showing 6 of 42 events</p>
+<button class="flex items-center gap-2 px-10 py-4 bg-white text-on-background font-bold rounded-2xl ghost-border hover:shadow-lg transition-all active:scale-95">
+                Load More Events
+                <span class="material-symbols-outlined">expand_more</span>
+</button>
+</div>
+</main>
+<!-- Footer -->
+<footer class="bg-slate-50 dark:bg-slate-950 w-full border-t border-slate-200/15">
+<div class="flex flex-col md:flex-row justify-between items-center px-12 py-16 w-full max-w-7xl mx-auto">
+<div class="flex flex-col gap-4 mb-8 md:mb-0">
+<div class="text-xl font-bold text-slate-900 dark:text-white font-headline">BoothBuzz</div>
+<p class="text-slate-500 dark:text-slate-400 font-['Inter'] text-sm max-w-xs">
+                    The premium editorial platform for world-class exhibition experiences and event discovery.
+                </p>
+</div>
+<div class="flex flex-wrap justify-center gap-x-12 gap-y-4 mb-8 md:mb-0">
+<a class="text-slate-500 dark:text-slate-400 font-['Inter'] text-lg hover:text-indigo-500 transition-all opacity-80 hover:opacity-100" href="#">Privacy Policy</a>
+<a class="text-slate-500 dark:text-slate-400 font-['Inter'] text-lg hover:text-indigo-500 transition-all opacity-80 hover:opacity-100" href="#">Terms of Service</a>
+<a class="text-slate-500 dark:text-slate-400 font-['Inter'] text-lg hover:text-indigo-500 transition-all opacity-80 hover:opacity-100" href="#">Exhibitor FAQ</a>
+<a class="text-slate-500 dark:text-slate-400 font-['Inter'] text-lg hover:text-indigo-500 transition-all opacity-80 hover:opacity-100" href="#">Contact Support</a>
+</div>
+<div class="text-slate-500 dark:text-slate-400 font-['Inter'] text-sm">
+                © 2024 BoothBuzz Editorial Events. All rights reserved.
+            </div>
+</div>
+</footer>
+<!-- Mobile Nav Bar (Visible only on small screens) -->
+<div class="md:hidden fixed bottom-0 left-0 w-full bg-white/90 backdrop-blur-md border-t border-outline-variant/10 px-6 py-4 flex justify-between items-center z-50">
+<div class="flex flex-col items-center text-indigo-600">
+<span class="material-symbols-outlined">explore</span>
+<span class="text-[10px] font-bold">Explore</span>
+</div>
+<div class="flex flex-col items-center text-slate-400">
+<span class="material-symbols-outlined">store</span>
+<span class="text-[10px] font-medium">Exhibitors</span>
+</div>
+<div class="flex flex-col items-center text-slate-400">
+<span class="material-symbols-outlined">calendar_month</span>
+<span class="text-[10px] font-medium">History</span>
+</div>
+<div class="flex flex-col items-center text-slate-400">
+<span class="material-symbols-outlined">person</span>
+<span class="text-[10px] font-medium">Profile</span>
+</div>
+</div>
+</body></html>

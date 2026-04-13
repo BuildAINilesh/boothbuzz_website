@@ -39,7 +39,12 @@ export interface User {
   venueId?: string | null; // venue_id from DB
   createdBy?: string | null; // created_by from DB
   totalRevenue: number; // total_revenue from DB
-  image?: string | null; // event_image from DB
+  /** Resolved cover image from any known column (see pickRawEventImage). */
+  image?: string | null;
+  /** Cover image resolved only from event_image_url (preferred for listings when set). */
+  eventImageUrl?: string | null;
+  /** Layout / floor-plan images (from layout_image_url + layout_image_urls), all resolved to public URLs. */
+  layoutImageUrls?: string[] | null;
   sponsorName?: string | null; // sponsor_name from DB
   sponsorLogoUrl?: string | null; // sponsor_logo_url from DB
   sponsorRole?: string | null; // role from event_sponsors table
@@ -58,6 +63,23 @@ export interface EventRegistration {
   status: 'pending' | 'confirmed' | 'cancelled';
   created_at: string;
   updated_at: string;
+}
+
+/** event_registrations row joined with exhibitor for public event detail. */
+export interface EventRegistrationWithExhibitor {
+  id: string;
+  boothSize: string | null;
+  status: string;
+  registrationDate: string;
+  exhibitor: {
+    companyName: string;
+    contactPerson?: string | null;
+    email?: string | null;
+    phone?: string | null;
+    category?: string | null;
+    city?: string | null;
+    booth?: string | null;
+  };
 }
   
   export interface Venue {
@@ -114,7 +136,11 @@ export interface EventRegistration {
     city?: string | null;
     booth?: string | null;
   companyLogoUrl?: string | null; // company_logo_url from DB
+  /** Primary showcase image for portfolio cards (DB: portfolio_image_url) */
+  portfolioImageUrl?: string | null;
   productImagesUrls?: string[] | null; // product_images_urls from DB
+  /** Extra uploaded photos for detail gallery (DB: image_urls) */
+  imageUrls?: string[] | null;
   companyProfileUrl?: string | null; // company_profile_url from DB
   gstCertificateUrl?: string | null; // gst_certificate_url from DB
   panCardUrl?: string | null; // pan_card_url from DB

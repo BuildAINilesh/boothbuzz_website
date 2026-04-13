@@ -1,7 +1,7 @@
 import { Calendar, Clock, MapPin, ChevronLeft, ChevronRight, Users, MapPinIcon, Star, Search as SearchIcon, LayoutGrid, List } from 'lucide-react';
 import { useExhibitors } from './hooks/useSupabaseData';
 import React, { useEffect, useState } from 'react';
-import { Building, User as UserIcon, MapPin as MapPinIcon2, Package, CheckCircle, Upload, FileText, Image, X } from 'lucide-react';
+import { Building, User as UserIcon, MapPin as MapPinIcon2, Package, CheckCircle, Upload, FileText, Image, X, ExternalLink, Mail, Phone } from 'lucide-react';
 import { supabase } from './supabase';
 import { AdSlot } from './components/AdSlot';
 import type { Exhibitor as ExhibitorRecord } from './types';
@@ -16,11 +16,329 @@ interface CategoryOption {
 }
 
 interface SubcategoryOption {
-  id: string;
-  label: string;
-  categoryId?: string | null;
+    id: string;
+    label: string;
+    categoryId?: string | null;
 }
 
+function exhibitorPreviewImage(ex: ExhibitorRecord): string | null {
+    const p = ex.portfolioImageUrl?.trim();
+    if (p) return p;
+    if (ex.companyLogoUrl?.trim()) return ex.companyLogoUrl;
+    const fromProduct = ex.productImagesUrls?.find((u) => String(u).trim());
+    if (fromProduct) return String(fromProduct).trim();
+    const fromGallery = ex.imageUrls?.find((u) => String(u).trim());
+    return fromGallery ? String(fromGallery).trim() : null;
+}
+
+function exhibitorMediaCount(ex: ExhibitorRecord): number {
+    const urls = new Set<string>();
+    for (const u of [ex.portfolioImageUrl, ex.companyLogoUrl]) {
+        const s = u?.trim();
+        if (s) urls.add(s);
+    }
+    for (const u of ex.productImagesUrls ?? []) {
+        const s = String(u).trim();
+        if (s) urls.add(s);
+    }
+    for (const u of ex.imageUrls ?? []) {
+        const s = String(u).trim();
+        if (s) urls.add(s);
+    }
+    return urls.size;
+}
+
+/** Deduped gallery items for detail modal (order: portfolio, logo, products, uploads). */
+function buildExhibitorGalleryItems(ex: ExhibitorRecord): { url: string; caption: string }[] {
+    const seen = new Set<string>();
+    const out: { url: string; caption: string }[] = [];
+    const add = (url: string | null | undefined, caption: string) => {
+        const u = url?.trim();
+        if (!u || seen.has(u)) return;
+        seen.add(u);
+        out.push({ url: u, caption });
+    };
+    add(ex.portfolioImageUrl, 'Portfolio');
+    add(ex.companyLogoUrl, 'Logo');
+    for (const u of ex.productImagesUrls ?? []) add(String(u), 'Product');
+    for (const u of ex.imageUrls ?? []) add(String(u), 'Upload');
+    return out;
+}
+
+const ExhibitorDetailModal: React.FC<{
+    ex: ExhibitorRecord;
+    onClose: () => void;
+}> = ({ ex, onClose }) => {
+    const heroSrc = exhibitorPreviewImage(ex);
+    const galleryItems = buildExhibitorGalleryItems(ex);
+    const hasDocs = !!(
+        ex.companyProfileUrl ||
+        ex.gstCertificateUrl ||
+        ex.panCardUrl ||
+        ex.productCatalogUrl
+    );
+
+    const DetailLine: React.FC<{ label: string; children?: React.ReactNode }> = ({ label, children }) => {
+        if (children == null || children === '') return null;
+        return (
+            <div className="flex gap-2 py-1.5 border-b border-outline-variant/10 last:border-0 text-sm">
+                <span className="text-on-surface-variant w-[7.5rem] shrink-0 text-xs font-semibold uppercase tracking-wide pt-0.5">
+                    {label}
+                </span>
+                <div className="text-on-surface min-w-0 flex-1 leading-snug">{children}</div>
+            </div>
+        );
+    };
+
+    return (
+        <div
+            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-3 bg-black/55 backdrop-blur-sm"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="exhibitor-detail-title"
+            onClick={(e) => {
+                if (e.target === e.currentTarget) onClose();
+            }}
+        >
+            <div
+                className="bg-surface-container-lowest text-on-surface font-body w-full sm:max-w-5xl max-h-[100dvh] sm:max-h-[92vh] sm:rounded-2xl shadow-2xl overflow-hidden flex flex-col border border-outline-variant/20"
+                onClick={(e) => e.stopPropagation()}
+            >
+                <div className="relative h-36 sm:h-40 shrink-0 bg-surface-container-low">
+                    {heroSrc ? (
+                        <img src={heroSrc} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                        <div className="h-full w-full bg-gradient-to-br from-primary/20 via-secondary-container/40 to-primary-fixed/30 flex items-center justify-center">
+                            <Image className="h-12 w-12 text-primary/40" aria-hidden />
+                        </div>
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-transparent" />
+                    <div className="absolute bottom-0 left-0 right-0 p-3 sm:p-4 flex items-end justify-between gap-3">
+                        <div className="min-w-0">
+                            <h2
+                                id="exhibitor-detail-title"
+                                className="text-lg sm:text-xl font-bold font-headline text-white drop-shadow-sm line-clamp-2"
+                            >
+                                {ex.companyName}
+                            </h2>
+                            <div className="flex flex-wrap gap-1.5 mt-2">
+                                {ex.category && (
+                                    <span className="text-[10px] sm:text-xs font-semibold bg-white/95 text-primary px-2 py-0.5 rounded-md">
+                                        {ex.category}
+                                    </span>
+                                )}
+                                <span className="text-[10px] sm:text-xs font-semibold capitalize bg-emerald-500/90 text-white px-2 py-0.5 rounded-md">
+                                    {ex.status}
+                                </span>
+                                <span className="text-[10px] sm:text-xs font-semibold bg-white/20 text-white px-2 py-0.5 rounded-md backdrop-blur-sm">
+                                    {ex.paymentStatus}
+                                </span>
+                            </div>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="shrink-0 p-2 rounded-xl bg-white/15 hover:bg-white/25 text-white backdrop-blur-md transition-colors"
+                            aria-label="Close"
+                        >
+                            <X className="h-5 w-5" />
+                        </button>
+                    </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto overscroll-contain">
+                    <div className="p-3 sm:p-4 space-y-3">
+                        {(ex.city || ex.contactPerson || ex.email) && (
+                            <div className="flex flex-wrap gap-2 text-xs text-on-surface-variant">
+                                {ex.city && (
+                                    <span className="inline-flex items-center gap-1 rounded-lg bg-surface-container-low px-2 py-1 ghost-border">
+                                        <MapPinIcon2 className="h-3.5 w-3.5 text-primary shrink-0" />
+                                        {ex.city}
+                                        {ex.state ? `, ${ex.state}` : ''}
+                                    </span>
+                                )}
+                                {ex.booth && (
+                                    <span className="inline-flex items-center gap-1 rounded-lg bg-surface-container-low px-2 py-1 ghost-border">
+                                        <Package className="h-3.5 w-3.5 text-primary shrink-0" />
+                                        Booth {ex.booth}
+                                    </span>
+                                )}
+                            </div>
+                        )}
+
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
+                            <div className="lg:col-span-5 space-y-3">
+                                <div className="rounded-xl bg-surface-container-low/50 p-3 sm:p-3.5 ghost-border border border-outline-variant/15">
+                                    <h3 className="text-xs font-bold font-headline text-primary uppercase tracking-wider mb-2">
+                                        Contact
+                                    </h3>
+                                    <div className="divide-y divide-outline-variant/10">
+                                        <DetailLine label="Person">{ex.contactPerson}</DetailLine>
+                                        <DetailLine label="Role">{ex.designation}</DetailLine>
+                                        {ex.email && (
+                                            <div className="flex gap-2 py-1.5 text-sm items-start">
+                                                <span className="text-on-surface-variant w-[7.5rem] shrink-0 text-xs font-semibold uppercase tracking-wide pt-0.5">
+                                                    Email
+                                                </span>
+                                                <a
+                                                    href={`mailto:${ex.email}`}
+                                                    className="text-primary font-medium inline-flex items-center gap-1 min-w-0 break-all hover:underline"
+                                                >
+                                                    <Mail className="h-3.5 w-3.5 shrink-0" />
+                                                    {ex.email}
+                                                </a>
+                                            </div>
+                                        )}
+                                        {ex.alternateEmail && (
+                                            <DetailLine label="Alt. email">{ex.alternateEmail}</DetailLine>
+                                        )}
+                                        {ex.phone && (
+                                            <div className="flex gap-2 py-1.5 text-sm items-start">
+                                                <span className="text-on-surface-variant w-[7.5rem] shrink-0 text-xs font-semibold uppercase tracking-wide pt-0.5">
+                                                    Phone
+                                                </span>
+                                                <a
+                                                    href={`tel:${ex.phone}`}
+                                                    className="text-primary font-medium inline-flex items-center gap-1 hover:underline"
+                                                >
+                                                    <Phone className="h-3.5 w-3.5 shrink-0" />
+                                                    {ex.phone}
+                                                </a>
+                                            </div>
+                                        )}
+                                        <DetailLine label="Alt. phone">{ex.alternatePhone}</DetailLine>
+                                        {Array.isArray(ex.subCategories) && ex.subCategories.length > 0 && (
+                                            <DetailLine label="Sub-cats">{ex.subCategories.join(', ')}</DetailLine>
+                                        )}
+                                        <DetailLine label="Address">{ex.address}</DetailLine>
+                                        <DetailLine label="Pincode">{ex.pincode}</DetailLine>
+                                        <DetailLine label="Country">{ex.country}</DetailLine>
+                                        {ex.website && (
+                                            <div className="flex gap-2 py-1.5 text-sm items-start">
+                                                <span className="text-on-surface-variant w-[7.5rem] shrink-0 text-xs font-semibold uppercase tracking-wide pt-0.5">
+                                                    Web
+                                                </span>
+                                                <a
+                                                    href={ex.website}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-primary font-medium inline-flex items-center gap-1 min-w-0 break-all hover:underline"
+                                                >
+                                                    <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                                                    <span className="truncate">{ex.website}</span>
+                                                </a>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="rounded-xl bg-surface-container-low/50 p-3 sm:p-3.5 ghost-border border border-outline-variant/15">
+                                    <h3 className="text-xs font-bold font-headline text-primary uppercase tracking-wider mb-2">
+                                        Documents
+                                    </h3>
+                                    {hasDocs ? (
+                                        <div className="flex flex-col gap-1">
+                                            {ex.companyProfileUrl && (
+                                                <a
+                                                    href={ex.companyProfileUrl}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="flex items-center gap-2 text-sm text-primary hover:bg-surface-container-low rounded-lg px-2 py-1.5 -mx-2 transition-colors"
+                                                >
+                                                    <FileText className="h-4 w-4 shrink-0 opacity-70" />
+                                                    Company profile
+                                                </a>
+                                            )}
+                                            {ex.gstCertificateUrl && (
+                                                <a
+                                                    href={ex.gstCertificateUrl}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="flex items-center gap-2 text-sm text-primary hover:bg-surface-container-low rounded-lg px-2 py-1.5 -mx-2 transition-colors"
+                                                >
+                                                    <FileText className="h-4 w-4 shrink-0 opacity-70" />
+                                                    GST certificate
+                                                </a>
+                                            )}
+                                            {ex.panCardUrl && (
+                                                <a
+                                                    href={ex.panCardUrl}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="flex items-center gap-2 text-sm text-primary hover:bg-surface-container-low rounded-lg px-2 py-1.5 -mx-2 transition-colors"
+                                                >
+                                                    <FileText className="h-4 w-4 shrink-0 opacity-70" />
+                                                    PAN card
+                                                </a>
+                                            )}
+                                            {ex.productCatalogUrl && (
+                                                <a
+                                                    href={ex.productCatalogUrl}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="flex items-center gap-2 text-sm text-primary hover:bg-surface-container-low rounded-lg px-2 py-1.5 -mx-2 transition-colors"
+                                                >
+                                                    <FileText className="h-4 w-4 shrink-0 opacity-70" />
+                                                    Product catalog
+                                                </a>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <p className="text-xs text-on-surface-variant">No documents uploaded.</p>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="lg:col-span-7 space-y-3 min-w-0">
+                                {ex.companyDescription && (
+                                    <div className="rounded-xl bg-surface-container-low/50 p-3 sm:p-3.5 ghost-border border border-outline-variant/15">
+                                        <h3 className="text-xs font-bold font-headline text-primary uppercase tracking-wider mb-2">
+                                            About
+                                        </h3>
+                                        <p className="text-sm text-on-surface leading-relaxed whitespace-pre-line">
+                                            {ex.companyDescription}
+                                        </p>
+                                    </div>
+                                )}
+
+                                {galleryItems.length > 0 && (
+                                    <div className="rounded-xl bg-surface-container-low/50 p-3 sm:p-3.5 ghost-border border border-outline-variant/15">
+                                        <h3 className="text-xs font-bold font-headline text-primary uppercase tracking-wider mb-2 flex items-center justify-between gap-2">
+                                            <span>Gallery</span>
+                                            <span className="text-on-surface-variant font-normal normal-case">
+                                                {galleryItems.length} photo{galleryItems.length === 1 ? '' : 's'}
+                                            </span>
+                                        </h3>
+                                        <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5 sm:gap-2">
+                                            {galleryItems.map((item, index) => (
+                                                <a
+                                                    key={`${item.url}-${index}`}
+                                                    href={item.url}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="group relative aspect-square overflow-hidden rounded-lg bg-surface-container-low ring-1 ring-outline-variant/10 hover:ring-primary/30 transition-all"
+                                                >
+                                                    <img
+                                                        src={item.url}
+                                                        alt={item.caption}
+                                                        className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                                    />
+                                                    <span className="absolute bottom-0 inset-x-0 bg-black/55 text-[9px] sm:text-[10px] text-white/95 px-1 py-0.5 truncate text-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        {item.caption}
+                                                    </span>
+                                                </a>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 export const Exhibitor: React.FC = () => {
 
@@ -937,10 +1255,11 @@ export const Exhibitor: React.FC = () => {
     */
 
     return (
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <>
+        <div className="max-w-7xl mx-auto px-4 sm:px-8 text-on-surface font-body">
             <div className="mb-16">
-                <h2 className="text-3xl font-semibold tracking-tight text-slate-900 mb-2">Our exhibitors</h2>
-                <p className="text-slate-600 mb-8">Browse registered exhibitors and their details.</p>
+                <h2 className="text-3xl md:text-4xl font-headline font-bold tracking-tight text-on-background mb-2">Our exhibitors</h2>
+                <p className="text-on-surface-variant mb-8">Browse registered exhibitors and their details.</p>
                 <div className="w-screen relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] mb-8">
                     <AdSlot slotId="exhibitors_above" className="w-full" />
                 </div>
@@ -952,17 +1271,17 @@ export const Exhibitor: React.FC = () => {
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             placeholder="Search by name, category, business type, city..."
-                            className="w-full pl-10 pr-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400"
+                            className="w-full pl-10 pr-3 py-2.5 rounded-xl bg-surface-container-low ghost-border text-on-surface placeholder:text-outline/50 focus:ring-2 focus:ring-primary/20 focus:outline-none"
                         />
                     </div>
-                    <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1 self-start">
+                    <div className="inline-flex rounded-xl border border-outline-variant/20 bg-surface-container-lowest p-1 self-start ghost-border">
                         <button
                             type="button"
                             onClick={() => setViewMode('grid')}
-                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold font-headline transition-colors ${
                                 viewMode === 'grid'
-                                    ? 'bg-indigo-600 text-white'
-                                    : 'text-slate-600 hover:bg-slate-100'
+                                    ? 'bg-primary text-on-primary'
+                                    : 'text-on-surface-variant hover:bg-surface-container-low'
                             }`}
                         >
                             <LayoutGrid className="h-4 w-4" />
@@ -971,10 +1290,10 @@ export const Exhibitor: React.FC = () => {
                         <button
                             type="button"
                             onClick={() => setViewMode('list')}
-                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold font-headline transition-colors ${
                                 viewMode === 'list'
-                                    ? 'bg-indigo-600 text-white'
-                                    : 'text-slate-600 hover:bg-slate-100'
+                                    ? 'bg-primary text-on-primary'
+                                    : 'text-on-surface-variant hover:bg-surface-container-low'
                             }`}
                         >
                             <List className="h-4 w-4" />
@@ -986,7 +1305,7 @@ export const Exhibitor: React.FC = () => {
                     <>
                     <div className={viewMode === 'grid' ? 'grid sm:grid-cols-2 lg:grid-cols-3 gap-4' : 'space-y-4'}>
                         {mainSectionExhibitors.map((ex) => {
-                            const previewImage = ex.companyLogoUrl || ex.productImagesUrls?.[0] || null;
+                            const previewImage = exhibitorPreviewImage(ex);
                             return (
                             <button
                                 key={ex.id}
@@ -1038,7 +1357,7 @@ export const Exhibitor: React.FC = () => {
                                 <div className="mt-3 flex items-center justify-between">
                                     <p className="text-xs text-indigo-700 font-semibold">View full profile</p>
                                     <span className="text-xs text-slate-500">
-                                        {(ex.productImagesUrls?.length || 0) + (ex.companyLogoUrl ? 1 : 0)} image(s)
+                                        {exhibitorMediaCount(ex)} image(s)
                                     </span>
                                 </div>
                                 </div>
@@ -1051,7 +1370,7 @@ export const Exhibitor: React.FC = () => {
                             <button
                                 type="button"
                                 onClick={() => setShowAllExhibitorsView(true)}
-                                className="inline-flex items-center justify-center px-5 py-2.5 rounded-lg bg-indigo-600 text-white font-medium hover:bg-indigo-700 transition-colors"
+                                className="inline-flex items-center justify-center px-5 py-2.5 rounded-xl bg-primary text-on-primary font-semibold font-headline hover:opacity-90 transition-opacity shadow-lg shadow-primary/20"
                             >
                                 View All Exhibitors ({filteredExhibitors.length})
                             </button>
@@ -1065,14 +1384,105 @@ export const Exhibitor: React.FC = () => {
                 )}
             </div>
 
-            <div className="mb-12">
-                <h2 className="text-3xl font-semibold tracking-tight text-slate-900 mb-2">Become an exhibitor</h2>
-                <p className="text-slate-600">Join our community and showcase your products at local exhibitions.</p>
-            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-start mb-12">
+                <div className="lg:col-span-7">
+                    <span className="inline-flex items-center px-4 py-1.5 rounded-full bg-primary-fixed text-on-primary-fixed-variant text-sm font-semibold font-headline mb-6">
+                        Join the showcase
+                    </span>
+                    <h2 className="text-4xl sm:text-5xl md:text-6xl font-extrabold font-headline leading-[1.1] tracking-tight text-on-surface mb-6">
+                        Your brand, <br />
+                        <span className="text-primary">under the spotlight.</span>
+                    </h2>
+                    <p className="text-lg md:text-xl text-on-surface-variant max-w-xl leading-relaxed">
+                        BoothBuzz connects creators with community audiences. Register to get a booth at local exhibitions and grow your reach.
+                    </p>
 
-            <div className="grid lg:grid-cols-2 gap-12">
-            <div className="bg-white p-8 rounded-xl border border-slate-200">
-                    <h3 className="text-xl font-semibold text-slate-900 mb-6">Register as exhibitor</h3>
+                    <div className="mt-8 lg:mt-10 space-y-5 max-w-xl lg:max-w-none">
+                        <div className="bg-surface-container-lowest p-5 md:p-6 rounded-2xl border border-outline-variant/20 ghost-border shadow-sm">
+                            <h3 className="text-base font-bold font-headline text-on-surface mb-4">Why exhibit with us</h3>
+                            <div className="space-y-3.5">
+                                <div className="flex items-start gap-3">
+                                    <Building className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+                                    <div>
+                                        <h4 className="font-semibold text-on-surface text-sm">Community reach</h4>
+                                        <p className="text-on-surface-variant text-sm leading-snug">Connect with local communities and potential customers.</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-start gap-3">
+                                    <Users className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+                                    <div>
+                                        <h4 className="font-semibold text-on-surface text-sm">Targeted audience</h4>
+                                        <p className="text-on-surface-variant text-sm leading-snug">Reach specific demographics in residential societies.</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-start gap-3">
+                                    <Star className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+                                    <div>
+                                        <h4 className="font-semibold text-on-surface text-sm">Quality events</h4>
+                                        <p className="text-on-surface-variant text-sm leading-snug">Well-organized exhibitions with professional support.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="bg-surface-container-lowest p-5 md:p-6 rounded-2xl border border-outline-variant/20 ghost-border shadow-sm">
+                            <h3 className="text-base font-bold font-headline text-on-surface mb-4">Exhibitor statistics</h3>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="rounded-xl bg-primary-fixed/40 border border-primary/10 px-3 py-4 text-center">
+                                    <div className="text-2xl font-bold font-headline text-primary">{totalExhibitors}</div>
+                                    <div className="text-on-surface-variant text-xs mt-1">Registered exhibitors</div>
+                                </div>
+                                <div className="rounded-xl bg-secondary-container/50 border border-outline-variant/15 px-3 py-4 text-center">
+                                    <div className="text-2xl font-bold font-headline text-on-surface">50+</div>
+                                    <div className="text-on-surface-variant text-xs mt-1">Events hosted</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {exhibitors && exhibitors.length > 0 && (
+                            <div className="bg-surface-container-lowest p-5 md:p-6 rounded-2xl border border-outline-variant/20 ghost-border shadow-sm">
+                                <h3 className="text-base font-bold font-headline text-on-surface mb-4">Recent exhibitors</h3>
+                                <div className="space-y-3">
+                                    {exhibitors.slice(0, 3).map((ex) => (
+                                        <div
+                                            key={ex.id}
+                                            className="rounded-xl border border-outline-variant/20 bg-surface-container-low/30 px-3 py-3"
+                                        >
+                                            <div className="flex items-center justify-between gap-2 mb-1">
+                                                <h4 className="font-semibold text-on-surface text-sm line-clamp-1">{ex.companyName}</h4>
+                                                <span className="text-[10px] uppercase tracking-wide bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full shrink-0">
+                                                    {ex.status}
+                                                </span>
+                                            </div>
+                                            {ex.category && (
+                                                <p className="text-xs text-on-surface-variant mb-2">{ex.category}</p>
+                                            )}
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setSelectedExhibitor(ex);
+                                                    setShowFileModal(true);
+                                                }}
+                                                className="text-xs font-semibold text-primary hover:opacity-80"
+                                            >
+                                                View details
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+                <div
+                    id="exhibitor-registration"
+                    className="lg:col-span-5 relative scroll-mt-24"
+                >
+                    <div className="absolute -top-10 -left-10 w-40 h-40 bg-primary-container/10 rounded-full blur-3xl pointer-events-none" aria-hidden />
+                    <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-secondary-container/20 rounded-full blur-3xl pointer-events-none" aria-hidden />
+                    <div className="relative bg-surface-container-lowest p-8 md:p-10 rounded-[2rem] shadow-editorial ghost-border">
+                    <h3 className="text-2xl font-bold font-headline text-on-surface mb-2">Exhibitor registration</h3>
+                    <p className="text-on-surface-variant text-sm mb-8">Tell us about your brand to get started.</p>
                     
                     {successMsg && (
                         <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4">
@@ -1312,282 +1722,52 @@ export const Exhibitor: React.FC = () => {
                 <button
                   type="submit"
                             disabled={submitting}
-                            className="w-full bg-indigo-600 text-white py-3 rounded-lg font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50"
+                            className="w-full bg-primary text-on-primary py-4 rounded-2xl font-bold font-headline text-base shadow-lg shadow-primary/20 hover:opacity-90 transition-opacity disabled:opacity-50"
                 >
-                            {submitting ? 'Submitting...' : 'Submit Registration'}
+                            {submitting ? 'Submitting...' : 'Submit registration'}
                 </button>
               </form>
+                    </div>
+                </div>
             </div>
 
-                {/* Information Section */}
-                <div className="space-y-8">
-                    <div className="bg-slate-50 p-6 rounded-xl border border-slate-200">
-                        <h3 className="text-lg font-semibold text-slate-900 mb-4">Why exhibit with us</h3>
-                        <div className="space-y-4">
-                            <div className="flex items-start gap-3">
-                                <Building className="h-5 w-5 text-indigo-500 mt-0.5 shrink-0" />
-                                <div>
-                                    <h4 className="font-medium text-slate-900">Community reach</h4>
-                                    <p className="text-slate-600 text-sm">Connect with local communities and potential customers.</p>
-                                </div>
-                            </div>
-                            <div className="flex items-start gap-3">
-                                <Users className="h-5 w-5 text-indigo-500 mt-0.5 shrink-0" />
-                                <div>
-                                    <h4 className="font-medium text-slate-900">Targeted audience</h4>
-                                    <p className="text-slate-600 text-sm">Reach specific demographics in residential societies.</p>
-                                </div>
-                            </div>
-                            <div className="flex items-start gap-3">
-                                <Star className="h-5 w-5 text-indigo-500 mt-0.5 shrink-0" />
-                                <div>
-                                    <h4 className="font-medium text-slate-900">Quality events</h4>
-                                    <p className="text-slate-600 text-sm">Well-organized exhibitions with professional support.</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="bg-white p-6 rounded-xl border border-slate-200">
-                        <h3 className="text-lg font-semibold text-slate-900 mb-4">Exhibitor statistics</h3>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="text-center">
-                                <div className="text-2xl font-semibold text-indigo-600">{totalExhibitors}</div>
-                                <div className="text-slate-600 text-sm">Registered exhibitors</div>
-                            </div>
-                            <div className="text-center">
-                                <div className="text-2xl font-semibold text-indigo-600">50+</div>
-                                <div className="text-slate-600 text-sm">Events hosted</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Recent Exhibitors (preview) */}
-                    {exhibitors && exhibitors.length > 0 && (
-                        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                            <h3 className="text-xl font-bold text-gray-900 mb-4">Recent Exhibitors</h3>
-                            <div className="space-y-4">
-                                {exhibitors.slice(0, 3).map((ex) => (
-                                    <div key={ex.id} className="border border-gray-200 rounded-lg p-4">
-                                        <div className="flex items-center justify-between mb-2">
-                                            <h4 className="font-semibold text-gray-900">{ex.companyName}</h4>
-                                            <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
-                                                {ex.status}
-                                            </span>
-                                        </div>
-                                        {ex.category && <p className="text-sm text-gray-600 mb-2">{ex.category}</p>}
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                setSelectedExhibitor(ex);
-                                                setShowFileModal(true);
-                                            }}
-                                            className="text-xs text-indigo-600 hover:text-indigo-700 font-medium"
-                                        >
-                                            View details
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    <div className="bg-slate-50 p-6 rounded-xl border border-slate-200">
-                        <h3 className="text-lg font-semibold text-slate-900 mb-4">What's included</h3>
-                        <ul className="space-y-2 text-gray-600">
-                            <li className="flex items-center space-x-2">
-                                <CheckCircle className="h-4 w-4 text-green-500" />
+                {/* What's included — full width under the two-column registration row */}
+                <div className="mt-10 lg:mt-12 max-w-3xl">
+                    <div className="bg-surface-container-lowest p-6 md:p-7 rounded-2xl border border-outline-variant/20 ghost-border shadow-sm">
+                        <h3 className="text-lg font-bold font-headline text-on-surface mb-4">What&apos;s included</h3>
+                        <ul className="space-y-2.5 text-on-surface-variant text-sm">
+                            <li className="flex items-center gap-2.5">
+                                <CheckCircle className="h-4 w-4 text-primary shrink-0" />
                                 <span>Booth space with basic setup</span>
                             </li>
-                            <li className="flex items-center space-x-2">
-                                <CheckCircle className="h-4 w-4 text-green-500" />
+                            <li className="flex items-center gap-2.5">
+                                <CheckCircle className="h-4 w-4 text-primary shrink-0" />
                                 <span>Event marketing and promotion</span>
                             </li>
-                            <li className="flex items-center space-x-2">
-                                <CheckCircle className="h-4 w-4 text-green-500" />
+                            <li className="flex items-center gap-2.5">
+                                <CheckCircle className="h-4 w-4 text-primary shrink-0" />
                                 <span>Customer support during event</span>
                             </li>
-                            <li className="flex items-center space-x-2">
-                                <CheckCircle className="h-4 w-4 text-green-500" />
+                            <li className="flex items-center gap-2.5">
+                                <CheckCircle className="h-4 w-4 text-primary shrink-0" />
                                 <span>Post-event analytics and feedback</span>
                             </li>
                         </ul>
                     </div>
-            </div>
-          </div>
+                </div>
+        </div>
 
             {/* Advanced Registration - COMMENTED OUT */}
             {/* <AdvancedExhibitorRegistration /> */}
 
-            {/* File Viewing Modal */}
             {showFileModal && selectedExhibitor && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-                        <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
-                            <h2 className="text-2xl font-bold text-gray-900">
-                                Details for {selectedExhibitor.companyName}
-                            </h2>
-                            <button
-                                onClick={() => {
-                                    setShowFileModal(false);
-                                    setSelectedExhibitor(null);
-                                }}
-                                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                            >
-                                <X className="h-6 w-6" />
-                            </button>
-                        </div>
-                        
-                        <div className="p-6">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                {/* Contact info */}
-                                <div className="border border-gray-200 rounded-lg p-4">
-                                    <h3 className="font-semibold text-gray-900 mb-3">Company & Contact</h3>
-                                    <p><span className="text-gray-600">Company:</span> {selectedExhibitor.companyName}</p>
-                                    {selectedExhibitor.contactPerson && <p><span className="text-gray-600">Contact:</span> {selectedExhibitor.contactPerson}</p>}
-                                    {selectedExhibitor.designation && <p><span className="text-gray-600">Designation:</span> {selectedExhibitor.designation}</p>}
-                                    {selectedExhibitor.email && <p><span className="text-gray-600">Email:</span> {selectedExhibitor.email}</p>}
-                                    {selectedExhibitor.alternateEmail && <p><span className="text-gray-600">Alternate Email:</span> {selectedExhibitor.alternateEmail}</p>}
-                                    {selectedExhibitor.phone && <p><span className="text-gray-600">Phone:</span> {selectedExhibitor.phone}</p>}
-                                    {selectedExhibitor.alternatePhone && <p><span className="text-gray-600">Alternate Phone:</span> {selectedExhibitor.alternatePhone}</p>}
-                                    {selectedExhibitor.category && <p><span className="text-gray-600">Category:</span> {selectedExhibitor.category}</p>}
-                                    {Array.isArray(selectedExhibitor.subCategories) && selectedExhibitor.subCategories.length > 0 && (
-                                        <p><span className="text-gray-600">Sub Categories:</span> {selectedExhibitor.subCategories.join(', ')}</p>
-                                    )}
-                                    {selectedExhibitor.city && <p><span className="text-gray-600">City:</span> {selectedExhibitor.city}</p>}
-                                    {selectedExhibitor.state && <p><span className="text-gray-600">State:</span> {selectedExhibitor.state}</p>}
-                                    {selectedExhibitor.country && <p><span className="text-gray-600">Country:</span> {selectedExhibitor.country}</p>}
-                                    {selectedExhibitor.pincode && <p><span className="text-gray-600">Pincode:</span> {selectedExhibitor.pincode}</p>}
-                                    {selectedExhibitor.address && <p><span className="text-gray-600">Address:</span> {selectedExhibitor.address}</p>}
-                                    {selectedExhibitor.booth && <p><span className="text-gray-600">Booth:</span> {selectedExhibitor.booth}</p>}
-                                    <p><span className="text-gray-600">Status:</span> {selectedExhibitor.status}</p>
-                                    <p><span className="text-gray-600">Payment:</span> {selectedExhibitor.paymentStatus}</p>
-                                    {selectedExhibitor.website && (
-                                        <p>
-                                            <span className="text-gray-600">Website:</span>{' '}
-                                            <a
-                                                href={selectedExhibitor.website}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="text-purple-600 hover:text-purple-700"
-                                            >
-                                                {selectedExhibitor.website}
-                                            </a>
-                                        </p>
-                                    )}
-                                </div>
-                                {/* Company Logo (if available from DB in future) */}
-                                {selectedExhibitor.companyLogoUrl && (
-                                    <div className="border border-gray-200 rounded-lg p-4">
-                                        <h3 className="font-semibold text-gray-900 mb-3">Company Logo</h3>
-                                        <img 
-                                            src={selectedExhibitor.companyLogoUrl}
-                                            alt="Company Logo"
-                                            className="w-full h-48 object-cover rounded-lg"
-                                        />
-                                        <a 
-                                            href={selectedExhibitor.companyLogoUrl}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="inline-block mt-2 text-purple-600 hover:text-purple-700 text-sm"
-                                        >
-                                            View Full Size
-                                        </a>
-                                    </div>
-                                )}
-
-                                {/* Product Images */}
-                                {selectedExhibitor.productImagesUrls && selectedExhibitor.productImagesUrls.length > 0 && (
-                                    <div className="border border-gray-200 rounded-lg p-4">
-                                        <h3 className="font-semibold text-gray-900 mb-3">Product Images</h3>
-                                        <div className="grid grid-cols-2 gap-2">
-                                            {selectedExhibitor.productImagesUrls.map((url, index) => (
-                                                <div key={index} className="relative">
-                                                    <img 
-                                                        src={url} 
-                                                        alt={`Product ${index + 1}`}
-                                                        className="w-full h-24 object-cover rounded"
-                                                    />
-                                                    <a 
-                                                        href={url}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-20 transition-all rounded flex items-center justify-center"
-                                                    >
-                                                        <span className="text-white opacity-0 hover:opacity-100 text-xs">View</span>
-                                                    </a>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Documents */}
-                                <div className="border border-gray-200 rounded-lg p-4">
-                                    <h3 className="font-semibold text-gray-900 mb-3">Documents</h3>
-                                    <div className="space-y-2">
-                                        {selectedExhibitor.companyProfileUrl && (
-                                            <a 
-                                                href={selectedExhibitor.companyProfileUrl}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="flex items-center space-x-2 text-purple-600 hover:text-purple-700"
-                                            >
-                                                <FileText className="h-4 w-4" />
-                                                <span>Company Profile</span>
-                                            </a>
-                                        )}
-                                        {selectedExhibitor.gstCertificateUrl && (
-                                            <a 
-                                                href={selectedExhibitor.gstCertificateUrl}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="flex items-center space-x-2 text-purple-600 hover:text-purple-700"
-                                            >
-                                                <FileText className="h-4 w-4" />
-                                                <span>GST Certificate</span>
-                                            </a>
-                                        )}
-                                        {selectedExhibitor.panCardUrl && (
-                                            <a 
-                                                href={selectedExhibitor.panCardUrl}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="flex items-center space-x-2 text-purple-600 hover:text-purple-700"
-                                            >
-                                                <FileText className="h-4 w-4" />
-                                                <span>PAN Card</span>
-                                            </a>
-                                        )}
-                                        {selectedExhibitor.productCatalogUrl && (
-                                            <a 
-                                                href={selectedExhibitor.productCatalogUrl}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="flex items-center space-x-2 text-purple-600 hover:text-purple-700"
-                                            >
-                                                <FileText className="h-4 w-4" />
-                                                <span>Product Catalog</span>
-                                            </a>
-                                        )}
-                                        {!selectedExhibitor.companyProfileUrl &&
-                                            !selectedExhibitor.gstCertificateUrl &&
-                                            !selectedExhibitor.panCardUrl &&
-                                            !selectedExhibitor.productCatalogUrl && (
-                                                <p className="text-sm text-gray-500">No documents uploaded yet.</p>
-                                            )}
-                                    </div>
-                                </div>
-                                {selectedExhibitor.companyDescription && (
-                                    <div className="border border-gray-200 rounded-lg p-4 md:col-span-2">
-                                        <h3 className="font-semibold text-gray-900 mb-3">About the company</h3>
-                                        <p className="text-sm text-gray-700 whitespace-pre-line">{selectedExhibitor.companyDescription}</p>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <ExhibitorDetailModal
+                    ex={selectedExhibitor}
+                    onClose={() => {
+                        setShowFileModal(false);
+                        setSelectedExhibitor(null);
+                    }}
+                />
             )}
             {showAllExhibitorsView && (
                 <div className="fixed inset-0 bg-black/60 z-50 p-4 md:p-6">
@@ -1610,7 +1790,7 @@ export const Exhibitor: React.FC = () => {
                         <div className="p-6 overflow-y-auto">
                             <div className={viewMode === 'grid' ? 'grid sm:grid-cols-2 lg:grid-cols-3 gap-4' : 'space-y-4'}>
                                 {filteredExhibitors.map((ex) => {
-                                    const previewImage = ex.companyLogoUrl || ex.productImagesUrls?.[0] || null;
+                                    const previewImage = exhibitorPreviewImage(ex);
                                     return (
                                         <button
                                             key={`all-${ex.id}`}
@@ -1662,7 +1842,7 @@ export const Exhibitor: React.FC = () => {
                                                 <div className="mt-3 flex items-center justify-between">
                                                     <p className="text-xs text-indigo-700 font-semibold">View full profile</p>
                                                     <span className="text-xs text-slate-500">
-                                                        {(ex.productImagesUrls?.length || 0) + (ex.companyLogoUrl ? 1 : 0)} image(s)
+                                                        {exhibitorMediaCount(ex)} image(s)
                                                     </span>
                                                 </div>
                                             </div>
@@ -1674,6 +1854,6 @@ export const Exhibitor: React.FC = () => {
                     </div>
                 </div>
             )}
-        </div>
+        </>
     );
 };

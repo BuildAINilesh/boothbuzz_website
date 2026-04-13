@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Exhibitor Registration | BoothBuzz</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "secondary-container": "#d5e0f8",
+                    "tertiary-fixed": "#d3e5f1",
+                    "on-error": "#ffffff",
+                    "secondary": "#545f73",
+                    "error-container": "#ffdad6",
+                    "primary": "#3525cd",
+                    "surface-variant": "#d3e4fe",
+                    "primary-container": "#4f46e5",
+                    "outline-variant": "#c7c4d8",
+                    "on-background": "#0b1c30",
+                    "primary-fixed-dim": "#c3c0ff",
+                    "secondary-fixed": "#d8e3fb",
+                    "inverse-surface": "#213145",
+                    "outline": "#777587",
+                    "on-surface": "#0b1c30",
+                    "surface-container-high": "#dce9ff",
+                    "background": "#f8f9ff",
+                    "on-secondary-fixed": "#111c2d",
+                    "on-secondary": "#ffffff",
+                    "surface-container-low": "#eff4ff",
+                    "surface-bright": "#f8f9ff",
+                    "on-primary-fixed": "#0f0069",
+                    "primary-fixed": "#e2dfff",
+                    "on-tertiary-fixed-variant": "#384953",
+                    "on-secondary-fixed-variant": "#3c475a",
+                    "tertiary-fixed-dim": "#b7c9d5",
+                    "on-primary": "#ffffff",
+                    "on-primary-fixed-variant": "#3323cc",
+                    "on-tertiary-container": "#ccdee9",
+                    "surface": "#f8f9ff",
+                    "surface-tint": "#4d44e3",
+                    "surface-container": "#e5eeff",
+                    "tertiary": "#3a4a54",
+                    "surface-container-lowest": "#ffffff",
+                    "error": "#ba1a1a",
+                    "secondary-fixed-dim": "#bcc7de",
+                    "on-secondary-container": "#586377",
+                    "on-tertiary-fixed": "#0c1e26",
+                    "on-surface-variant": "#464555",
+                    "surface-dim": "#cbdbf5",
+                    "on-error-container": "#93000a",
+                    "inverse-on-surface": "#eaf1ff",
+                    "on-tertiary": "#ffffff",
+                    "tertiary-container": "#51626c",
+                    "on-primary-container": "#dad7ff",
+                    "inverse-primary": "#c3c0ff",
+                    "surface-container-highest": "#d3e4fe"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "fontFamily": {
+                    "headline": ["Plus Jakarta Sans"],
+                    "body": ["Inter"],
+                    "label": ["Inter"]
+            }
+          },
+        }
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .ghost-border {
+            border: 1px solid rgba(199, 196, 216, 0.15);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body selection:bg-primary/20">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl shadow-[0_32px_64px_rgba(11,28,48,0.05)]">
+<nav class="flex justify-between items-center w-full px-8 py-4 max-w-full mx-auto">
+<div class="text-2xl font-extrabold tracking-tighter text-indigo-700 dark:text-indigo-300 font-headline">BoothBuzz</div>
+<div class="hidden md:flex items-center space-x-8">
+<a class="text-slate-600 dark:text-slate-400 font-medium hover:text-indigo-500 transition-colors duration-300 font-headline" href="#">Explore</a>
+<a class="text-indigo-700 dark:text-indigo-300 font-bold border-b-2 border-indigo-600 font-headline" href="#">Exhibitors</a>
+<a class="text-slate-600 dark:text-slate-400 font-medium hover:text-indigo-500 transition-colors duration-300 font-headline" href="#">Past Events</a>
+<a class="text-slate-600 dark:text-slate-400 font-medium hover:text-indigo-500 transition-colors duration-300 font-headline" href="#">Dashboard</a>
+</div>
+<div class="flex items-center gap-4">
+<button class="hidden lg:flex items-center text-indigo-600 dark:text-indigo-400 font-medium hover:text-indigo-500 transition-all font-headline">
+                    Sign In
+                </button>
+<button class="bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-bold font-headline scale-95 active:scale-90 transition-transform hover:bg-indigo-700">
+                    Register Now
+                </button>
+</div>
+</nav>
+</header>
+<main class="pt-32 pb-24 px-6 md:px-12 max-w-7xl mx-auto">
+<!-- Editorial Hero Section -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-16 items-center mb-24">
+<div class="lg:col-span-7">
+<span class="inline-flex items-center px-4 py-1.5 rounded-full bg-primary-fixed text-on-primary-fixed-variant text-sm font-semibold mb-6">
+                    Join the 2024 Showcase
+                </span>
+<h1 class="text-6xl md:text-7xl font-extrabold font-headline leading-[1.1] tracking-tight text-on-surface mb-8">
+                    Your Brand, <br/>
+<span class="text-primary">Under the Spotlight.</span>
+</h1>
+<p class="text-xl text-on-surface-variant max-w-xl leading-relaxed mb-10">
+                    BoothBuzz connects elite creators with premium audiences. Secure your space in our next editorial event and watch your business reach new heights.
+                </p>
+<div class="flex flex-col sm:flex-row gap-8 items-start sm:items-center">
+<div class="flex -space-x-4">
+<img class="w-12 h-12 rounded-full border-4 border-surface shadow-sm" data-alt="professional woman smiling in modern office setting with warm natural light" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAoAFvkFfrH8txe3um87XqRfeEth-B7RLgb8SfOvkH9G9BZxamPWymBX7bvus0bQBR4CJ8IF7w6ohNrgaEp9mT--dfZFHm94ZgCpsFbIlCOUqcbBJBY8Ym-ZpLmRh0dYvUAThPnqUOiYnWBabmO62jOLtVD3Pyk5rW97th7uI8_OTnvpbXFLvOvB0ubz5oiCODhEKi_KgTYGFbEwZer6ZXUVuwq2r0lYBzQeHlcUU4i_NSJckwKioNiQ6RVIK3fsp-E_neits_UwTo"/>
+<img class="w-12 h-12 rounded-full border-4 border-surface shadow-sm" data-alt="portrait of a confident creative professional man with spectacles in a bright studio" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDTPBOFtaWfQmOTdcFPHXhKPay6zt6-9-MA65-3oE6CBVkgzNWcag9GrCq9RTWApr_U4wHGGIn2UOkgSE2r77StXf5_Mm0rPUV7NIQPI5Ty3NTXCedU1K3I9GDcI2FNqrcCfD6fSIh7J4GqEBsuwR7FkTQNlSx9MrWxRAX9x87EsfTlh21C0UVx3PLxEfuA-QAlMj-XyL5WfvwJT4Bd-_D2qJ2WqNry3bsnv9bvNdDo8wTNGZJvt2P4ruei_A0je9ETCq5LM9abbuM"/>
+<img class="w-12 h-12 rounded-full border-4 border-surface shadow-sm" data-alt="vibrant portrait of a young designer laughing in a sun-drenched creative workspace" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA0eCvejkwC0Df3iXGTO2d0o9weA3PYk_cRLyBSXGNuAiEJo0fXifzDesEG-AkVV2Rh7ezZ4eTRXtRcvayR_X84p5SopPZLPxRb5kz9Prs3dnIpW0QyMhXQUjC4Ts17QRrErP3y4-pN6rnMHxG8sMLDpaME656xaTRXotZat49NhX8GBmA_mI4rIiqfCcSLe5nQtUJ1ulp3wmeAfiJyG1lG-ER98mOOlKhgzR8fLS5u5imXQbd93BXmZuylvlVW1Xaz2Tuj5tbgm2A"/>
+</div>
+<p class="text-sm text-secondary font-medium italic">
+                        "The best decision for our studio's growth." <br/>
+<span class="text-on-surface font-bold">— Studio Alora, Premier Exhibitor</span>
+</p>
+</div>
+</div>
+<div class="lg:col-span-5 relative">
+<div class="absolute -top-10 -left-10 w-40 h-40 bg-primary-container/10 rounded-full blur-3xl"></div>
+<div class="absolute -bottom-10 -right-10 w-40 h-40 bg-secondary-container/20 rounded-full blur-3xl"></div>
+<!-- Registration Card -->
+<div class="relative bg-surface-container-lowest p-8 md:p-10 rounded-[2rem] shadow-[0_32px_64px_rgba(11,28,48,0.05)] ghost-border">
+<div class="mb-8">
+<h2 class="text-2xl font-bold font-headline text-on-surface mb-2">Exhibitor Registration</h2>
+<p class="text-on-surface-variant text-sm">Tell us about your brand to get started.</p>
+</div>
+<form action="#" class="space-y-6">
+<div class="space-y-1.5">
+<label class="text-xs font-bold uppercase tracking-wider text-secondary px-1">Full Name</label>
+<input class="w-full bg-surface-container-low border-none border-b-2 border-outline-variant focus:border-primary focus:ring-0 transition-all rounded-xl py-4 px-5 text-on-surface placeholder:text-outline/50" placeholder="Alex Morgan" type="text"/>
+</div>
+<div class="space-y-1.5">
+<label class="text-xs font-bold uppercase tracking-wider text-secondary px-1">Business Name</label>
+<input class="w-full bg-surface-container-low border-none border-b-2 border-outline-variant focus:border-primary focus:ring-0 transition-all rounded-xl py-4 px-5 text-on-surface placeholder:text-outline/50" placeholder="Your Brand Ltd." type="text"/>
+</div>
+<div class="space-y-1.5">
+<label class="text-xs font-bold uppercase tracking-wider text-secondary px-1">Category</label>
+<div class="relative group">
+<select class="w-full bg-surface-container-low border-none border-b-2 border-outline-variant focus:border-primary focus:ring-0 transition-all rounded-xl py-4 px-5 text-on-surface appearance-none cursor-pointer">
+<option disabled="" selected="" value="">Select category</option>
+<option>Art &amp; Design</option>
+<option>Technology</option>
+<option>Sustainable Living</option>
+<option>Lifestyle &amp; Fashion</option>
+</select>
+<div class="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
+<span class="material-symbols-outlined text-outline">expand_more</span>
+</div>
+</div>
+</div>
+<div class="space-y-1.5">
+<label class="text-xs font-bold uppercase tracking-wider text-secondary px-1">Contact Email</label>
+<input class="w-full bg-surface-container-low border-none border-b-2 border-outline-variant focus:border-primary focus:ring-0 transition-all rounded-xl py-4 px-5 text-on-surface placeholder:text-outline/50" placeholder="alex@brand.com" type="email"/>
+</div>
+<div class="pt-4">
+<button class="w-full bg-primary py-5 rounded-2xl text-white font-bold text-lg shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all">
+                                Request Access
+                            </button>
+</div>
+</form>
+<div class="mt-8 pt-8 border-t border-outline-variant/10 text-center">
+<p class="text-sm text-secondary">
+                            Already have an account? 
+                            <a class="text-primary font-bold hover:underline ml-1" href="#">Sign In</a>
+</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Growth Focused Features - Bento Style -->
+<section class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<div class="md:col-span-2 bg-surface-container p-8 md:p-12 rounded-[2.5rem] relative overflow-hidden flex flex-col justify-between min-h-[320px]">
+<div class="relative z-10">
+<h3 class="text-3xl font-bold font-headline text-on-surface mb-4">Global Reach, <br/>Local Connection.</h3>
+<p class="text-on-secondary-container max-w-sm">Our editorial platform reaches over 100k curated enthusiasts monthly, providing unmatched visibility for emerging brands.</p>
+</div>
+<div class="absolute right-0 bottom-0 w-1/2 h-full hidden lg:block">
+<img class="w-full h-full object-cover rounded-tl-[3rem]" data-alt="abstract architectural geometry with sharp shadows and soft blue tones reflecting modern professional aesthetics" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBGe29H6HGQzeE_ubU0gw8OEuVhb4qU_HX3uugSMxG9LwnSxPHBvFnbUXPTUKMz2J57VS2oNQsy3SbhUGpBat5MkriBsdLtikGgazfM8J-UoOhuKeikpcgDngzNsQR94gowjXfJ8EJHW3ABNH9L-sdl2hur8I1K_V5XbbI24-qdtv2ONSxGr95C8NVNaHSKM4ugD2aRD5q3QK61ddAFyfe9NoWQBhllCgm-uQbLYy3-YctdJBDlyFgeU4pSL_L24WSWv6PwffuTxaQ"/>
+</div>
+</div>
+<div class="bg-primary-container p-8 md:p-10 rounded-[2.5rem] text-on-primary-container flex flex-col justify-center text-center">
+<div class="mx-auto bg-white/20 w-16 h-16 rounded-2xl flex items-center justify-center mb-6">
+<span class="material-symbols-outlined text-4xl" data-weight="fill">trending_up</span>
+</div>
+<h4 class="text-xl font-bold font-headline mb-2">Accelerated Growth</h4>
+<p class="text-on-primary-container/80 text-sm">94% of our exhibitors report significant sales growth within 3 months of participation.</p>
+</div>
+<div class="bg-surface-container-low p-8 rounded-[2.5rem] flex flex-col justify-between">
+<span class="material-symbols-outlined text-primary text-3xl">verified</span>
+<div>
+<h4 class="font-bold font-headline text-lg mb-2">Premium Vetting</h4>
+<p class="text-sm text-on-surface-variant">We curate our exhibitors to ensure the highest quality experience for both brands and visitors.</p>
+</div>
+</div>
+<div class="bg-surface-container-low p-8 rounded-[2.5rem] flex flex-col justify-between">
+<span class="material-symbols-outlined text-primary text-3xl">support_agent</span>
+<div>
+<h4 class="font-bold font-headline text-lg mb-2">24/7 Concierge</h4>
+<p class="text-sm text-on-surface-variant">From booth design to digital marketing, our team is with you at every single step.</p>
+</div>
+</div>
+<div class="bg-surface-container-low p-8 rounded-[2.5rem] flex flex-col justify-between">
+<span class="material-symbols-outlined text-primary text-3xl">analytics</span>
+<div>
+<h4 class="font-bold font-headline text-lg mb-2">Live Insights</h4>
+<p class="text-sm text-on-surface-variant">Access real-time visitor analytics and lead tracking through our specialized dashboard.</p>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="w-full border-t border-slate-200/15 bg-slate-50 dark:bg-slate-950 mt-24">
+<div class="flex flex-col md:flex-row justify-between items-center px-12 py-16 w-full max-w-7xl mx-auto">
+<div class="mb-8 md:mb-0">
+<div class="text-xl font-bold text-slate-900 dark:text-white mb-4">BoothBuzz</div>
+<p class="text-slate-500 dark:text-slate-400 font-['Inter'] text-sm max-w-xs">Elevating the event experience through editorial excellence.</p>
+</div>
+<div class="flex flex-wrap justify-center gap-x-12 gap-y-4">
+<a class="text-slate-500 dark:text-slate-400 text-lg hover:text-indigo-500 transition-all font-['Inter']" href="#">Privacy Policy</a>
+<a class="text-slate-500 dark:text-slate-400 text-lg hover:text-indigo-500 transition-all font-['Inter']" href="#">Terms of Service</a>
+<a class="text-slate-500 dark:text-slate-400 text-lg hover:text-indigo-500 transition-all font-['Inter']" href="#">Exhibitor FAQ</a>
+<a class="text-slate-500 dark:text-slate-400 text-lg hover:text-indigo-500 transition-all font-['Inter']" href="#">Contact Support</a>
+</div>
+</div>
+<div class="px-12 py-8 text-center border-t border-slate-200/10">
+<p class="text-slate-500 dark:text-slate-400 text-sm">© 2024 BoothBuzz Editorial Events. All rights reserved.</p>
+</div>
+</footer>
+</body></html>
