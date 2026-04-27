@@ -59,12 +59,18 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
   onRegister,
 }) => {
   const [tab, setTab] = useState<DetailTab>('overview');
+  const [descExpanded, setDescExpanded] = useState(false);
+  const [selectedLayoutIndex, setSelectedLayoutIndex] = useState(0);
   const [registrations, setRegistrations] = useState<EventRegistrationWithExhibitor[]>([]);
   const [regLoading, setRegLoading] = useState(false);
   const [regError, setRegError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (isOpen) setTab('overview');
+    if (isOpen) {
+      setTab('overview');
+      setDescExpanded(false);
+      setSelectedLayoutIndex(0);
+    }
   }, [isOpen, event.id]);
 
   const loadRegistrations = useCallback(async () => {
@@ -115,6 +121,14 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
     loadRegistrations();
   }, [isOpen, event.id, loadRegistrations]);
 
+  const layoutUrlCount = (event.layoutImageUrls?.filter(Boolean) ?? []).length;
+  useEffect(() => {
+    if (!isOpen) return;
+    if (tab === 'layout' && layoutUrlCount > 0) {
+      setSelectedLayoutIndex((i) => Math.min(Math.max(i, 0), layoutUrlCount - 1));
+    }
+  }, [tab, isOpen, layoutUrlCount]);
+
   if (!isOpen) return null;
 
   const coverImage =
@@ -147,8 +161,14 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
         })
       : event.date ?? '—';
 
-  const footfallLabel =
-    event.maxCapacity > 0 ? `${event.maxCapacity.toLocaleString()}+ capacity` : 'Open capacity';
+  const aboutText =
+    event.description?.trim() ||
+    'Join us for this BoothBuzz community exhibition. More details will be shared closer to the date.';
+  const showAboutToggle = aboutText.length > 220;
+
+  const eventStatusLabel = (event.status ?? '')
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
 
   const handleOverlayClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) onClose();
@@ -187,204 +207,266 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
       aria-modal="true"
       aria-labelledby="event-detail-title"
     >
-      <div className="bg-background text-on-surface font-body rounded-3xl max-w-5xl w-full max-h-[95vh] min-h-0 overflow-hidden border border-outline-variant/15 shadow-[0_32px_64px_rgba(11,28,48,0.12)] flex flex-col my-4">
-        <div className="relative h-56 sm:h-72 md:h-80 shrink-0 overflow-hidden">
-          <img
-            src={coverImage}
-            alt=""
-            className="w-full h-full object-cover"
-            onError={(e) => {
-              (e.target as HTMLImageElement).src = DEFAULT_EVENT_IMAGE;
-            }}
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-on-background/85 via-on-background/20 to-transparent" />
-          <div className="absolute bottom-0 left-0 right-0 p-6 md:p-10 flex flex-col md:flex-row md:items-end md:justify-between gap-6">
-            <div className="max-w-2xl">
-              {event.featured && (
-                <span className="bg-primary/30 text-white backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold tracking-wide uppercase mb-3 inline-block">
-                  Featured exhibition
-                </span>
-              )}
-              <h2
-                id="event-detail-title"
-                className="text-white text-3xl sm:text-4xl md:text-5xl font-headline font-extrabold tracking-tight leading-tight"
-              >
-                {event.title}
-              </h2>
-              <div className="flex flex-wrap gap-4 mt-3 text-white/90 text-sm">
-                <span className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4" />
-                  {eventDate}
-                </span>
-                <span className="flex items-center gap-2">
-                  <MapPin className="h-4 w-4" />
-                  {event.venue}
-                  {event.city ? `, ${event.city}` : ''}
-                </span>
-              </div>
-            </div>
-            <div className="bg-white/10 backdrop-blur-xl p-5 rounded-2xl border border-white/10 text-center min-w-[160px]">
-              <span className="text-white/70 text-xs uppercase tracking-widest block mb-1">Capacity</span>
-              <span className="text-white text-3xl font-headline font-extrabold">
-                {event.maxCapacity > 0 ? event.maxCapacity.toLocaleString() : '—'}
-              </span>
-              <span className="text-primary-fixed-dim text-xs mt-1 block">{footfallLabel}</span>
-            </div>
-          </div>
+      <div className="bg-background text-on-surface font-body rounded-3xl max-w-6xl w-full max-h-[95vh] min-h-0 overflow-hidden border border-outline-variant/15 shadow-[0_32px_64px_rgba(11,28,48,0.12)] flex flex-col my-4">
+        <header className="shrink-0 relative border-b border-outline-variant/15 bg-surface-container-lowest/80 px-4 py-3 md:px-5 md:py-4 pr-14 md:pr-16">
           <button
+            type="button"
             onClick={onClose}
-            className="absolute top-4 right-4 p-2 rounded-full bg-on-surface/40 text-white hover:bg-on-surface/60 transition-colors"
+            className="absolute top-3 right-3 p-2 rounded-full bg-surface-container-high text-on-surface hover:bg-surface-container transition-colors"
             aria-label="Close"
           >
             <X className="h-5 w-5" />
           </button>
-        </div>
-
-        <div className="shrink-0 px-4 md:px-8 pt-4 pb-3 border-b border-outline-variant/15 bg-surface-container-low/60">
-          <div
-            className="grid grid-cols-3 gap-1 sm:gap-0 rounded-2xl p-1 sm:p-1 bg-surface-container-high/80 border border-outline-variant/25 shadow-inner"
-            role="tablist"
-            aria-label="Event detail sections"
-          >
-            {tabs.map(({ id, label, shortLabel, icon, disabled }) => {
-              const selected = tab === id;
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  role="tab"
-                  aria-selected={selected}
-                  aria-controls={`event-detail-panel-${id}`}
-                  id={`event-detail-tab-${id}`}
-                  disabled={disabled}
-                  onClick={() => !disabled && setTab(id)}
-                  className={[
-                    'group relative flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 min-w-0 py-2.5 px-1 sm:px-3 rounded-xl text-center font-headline font-semibold text-xs sm:text-sm transition-all duration-200',
-                    selected
-                      ? 'bg-surface-container-lowest text-primary shadow-md ring-1 ring-outline-variant/20 z-10'
-                      : disabled
-                        ? 'text-outline-variant/60 cursor-not-allowed opacity-60'
-                        : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-lowest/70',
-                  ].join(' ')}
-                >
-                  <span
-                    className={
-                      selected ? 'text-primary' : 'text-on-surface-variant group-hover:text-on-surface'
-                    }
-                  >
-                    {icon}
+          <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between md:gap-6">
+            <div className="min-w-0 flex-1">
+              {event.featured && (
+                <span className="text-primary text-[10px] font-bold uppercase tracking-wide mb-1 inline-block">
+                  Featured
+                </span>
+              )}
+              <h2
+                id="event-detail-title"
+                className="text-on-surface text-xl sm:text-2xl md:text-3xl font-headline font-extrabold tracking-tight leading-tight"
+              >
+                {event.title}
+              </h2>
+              <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[11px] sm:text-xs text-on-surface-variant">
+                <span className="inline-flex items-center gap-1 min-w-0">
+                  <Calendar className="h-3.5 w-3.5 shrink-0 text-primary" />
+                  <span className="truncate">{eventDate}</span>
+                </span>
+                <span className="inline-flex items-center gap-1 min-w-0">
+                  <Clock className="h-3.5 w-3.5 shrink-0 text-primary" />
+                  <span className="truncate">{event.time ?? '—'}</span>
+                </span>
+                <span className="inline-flex items-start gap-1 min-w-0 max-w-full sm:max-w-[70%]">
+                  <MapPin className="h-3.5 w-3.5 shrink-0 text-primary mt-0.5" />
+                  <span className="leading-snug">
+                    {event.venue}
+                    {event.city ? `, ${event.city}` : ''}
                   </span>
-                  <span className="truncate max-w-full leading-tight sm:hidden">{shortLabel}</span>
-                  <span className="truncate max-w-full leading-tight hidden sm:inline">{label}</span>
-                </button>
-              );
-            })}
+                </span>
+              </div>
+            </div>
+            <div className="shrink-0 rounded-xl border border-outline-variant/20 bg-surface-container-low px-4 py-2 text-center md:text-right">
+              <p className="text-[10px] font-bold text-outline uppercase tracking-wide">Capacity</p>
+              <p className="text-2xl font-headline font-extrabold text-on-surface leading-tight">
+                {event.maxCapacity > 0 ? event.maxCapacity.toLocaleString() : '—'}
+              </p>
+            </div>
           </div>
-        </div>
+        </header>
 
-        <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+        <div className="flex-1 min-h-0 flex flex-col lg:flex-row overflow-hidden">
+          <aside
+            className="shrink-0 flex flex-row lg:flex-col gap-2 p-3 border-b lg:border-b-0 lg:border-r border-outline-variant/15 bg-surface-container-low/25 overflow-x-auto lg:overflow-y-auto lg:w-[min(34vw,300px)] xl:w-[320px] max-h-[min(200px,32vh)] lg:max-h-[calc(95vh-10rem)]"
+            aria-label="Event images"
+          >
+            <div className="relative w-[min(42%,200px)] shrink-0 lg:w-full aspect-[4/5] max-h-[min(32vh,280px)] lg:max-h-[min(48vh,400px)] rounded-xl overflow-hidden bg-surface-container-low shadow-editorial ring-1 ring-outline-variant/10">
+              <img
+                src={coverImage}
+                alt=""
+                className="absolute inset-0 w-full h-full object-cover"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = DEFAULT_EVENT_IMAGE;
+                }}
+              />
+            </div>
+            {hasLayout && (
+              <div className="flex flex-row lg:flex-col gap-2 min-w-0 flex-1 lg:flex-1 lg:min-h-0 lg:overflow-y-auto">
+                <p className="hidden lg:block text-[10px] font-bold text-outline uppercase tracking-wide px-0.5">
+                  Floor plans
+                </p>
+                <div className="flex flex-row lg:flex-col gap-2 overflow-x-auto lg:overflow-y-auto min-w-0 flex-1 pb-1 lg:pb-0">
+                  {layoutImages.map((url, i) => {
+                    const selected = tab === 'layout' && selectedLayoutIndex === i;
+                    return (
+                      <button
+                        key={`${url}-${i}`}
+                        type="button"
+                        onClick={() => {
+                          setSelectedLayoutIndex(i);
+                          setTab('layout');
+                        }}
+                        className={[
+                          'relative shrink-0 w-16 h-16 sm:w-[4.5rem] sm:h-[4.5rem] lg:w-full lg:aspect-square lg:max-h-24 rounded-lg overflow-hidden ring-2 transition-shadow bg-surface-container',
+                          selected
+                            ? 'ring-primary shadow-md'
+                            : 'ring-transparent hover:ring-outline-variant/40',
+                        ].join(' ')}
+                        aria-label={`Layout thumbnail ${i + 1}`}
+                        aria-pressed={selected}
+                      >
+                        <img
+                          src={url}
+                          alt=""
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.opacity = '0.35';
+                          }}
+                        />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </aside>
+
+          <div className="flex-1 min-w-0 flex flex-col min-h-0 overflow-hidden">
+            <div
+              className="shrink-0 px-3 md:px-5 py-2 border-b border-outline-variant/10 bg-surface-container-lowest/90"
+              aria-label="Event summary"
+            >
+              <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-x-3 gap-y-2 text-[11px] sm:text-xs">
+                <div className="flex items-start gap-1.5 min-w-0">
+                  <LayoutGrid className="h-3.5 w-3.5 shrink-0 text-primary mt-0.5" />
+                  <div className="min-w-0">
+                    <p className="font-bold text-outline uppercase tracking-wide text-[10px]">Plan</p>
+                    <p className="font-semibold text-on-surface truncate">{event.planType ?? '—'}</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-1.5 min-w-0">
+                  <Info className="h-3.5 w-3.5 shrink-0 text-primary mt-0.5" />
+                  <div className="min-w-0">
+                    <p className="font-bold text-outline uppercase tracking-wide text-[10px]">Status</p>
+                    <p className="font-semibold text-on-surface truncate">{eventStatusLabel || '—'}</p>
+                  </div>
+                </div>
+                {hasLayout && (
+                  <div className="flex items-start gap-1.5 min-w-0">
+                    <Images className="h-3.5 w-3.5 shrink-0 text-primary mt-0.5" />
+                    <div className="min-w-0">
+                      <p className="font-bold text-outline uppercase tracking-wide text-[10px]">Layouts</p>
+                      <p className="font-semibold text-on-surface">{layoutImages.length} image(s)</p>
+                    </div>
+                  </div>
+                )}
+                {hasSponsor && sponsorName && (
+                  <div className="flex items-start gap-1.5 min-w-0 col-span-2 xl:col-span-1">
+                    <Award className="h-3.5 w-3.5 shrink-0 text-primary mt-0.5" />
+                    <div className="min-w-0">
+                      <p className="font-bold text-outline uppercase tracking-wide text-[10px]">{sponsorRoleLabel}</p>
+                      <p className="font-semibold text-on-surface line-clamp-2">{sponsorName}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="shrink-0 px-3 md:px-5 pt-2 pb-2 border-b border-outline-variant/10 bg-surface-container-low/50">
+              <div
+                className="grid grid-cols-3 gap-1 rounded-2xl p-1 bg-surface-container-high/80 border border-outline-variant/25 shadow-inner"
+                role="tablist"
+                aria-label="Event detail sections"
+              >
+                {tabs.map(({ id, label, shortLabel, icon, disabled }) => {
+                  const selected = tab === id;
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      role="tab"
+                      aria-selected={selected}
+                      aria-controls={`event-detail-panel-${id}`}
+                      id={`event-detail-tab-${id}`}
+                      disabled={disabled}
+                      onClick={() => !disabled && setTab(id)}
+                      className={[
+                        'group relative flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 min-w-0 py-2 px-1 sm:px-2 rounded-xl text-center font-headline font-semibold text-xs transition-all duration-200',
+                        selected
+                          ? 'bg-surface-container-lowest text-primary shadow-md ring-1 ring-outline-variant/20 z-10'
+                          : disabled
+                            ? 'text-outline-variant/60 cursor-not-allowed opacity-60'
+                            : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-lowest/70',
+                      ].join(' ')}
+                    >
+                      <span
+                        className={
+                          selected ? 'text-primary' : 'text-on-surface-variant group-hover:text-on-surface'
+                        }
+                      >
+                        {icon}
+                      </span>
+                      <span className="truncate max-w-full leading-tight sm:hidden">{shortLabel}</span>
+                      <span className="truncate max-w-full leading-tight hidden sm:inline">{label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
           {tab === 'overview' && (
             <div
               id="event-detail-panel-overview"
               role="tabpanel"
               aria-labelledby="event-detail-tab-overview"
-              className="grid grid-cols-1 md:grid-cols-12 gap-6 md:gap-8 p-6 md:p-8"
+              className="grid grid-cols-1 xl:grid-cols-3 gap-4 md:gap-5 p-4 md:p-5"
             >
-              <div className="md:col-span-8 space-y-8">
-                <div className="bg-surface-container-low p-6 md:p-8 rounded-3xl relative overflow-hidden ghost-border">
-                  <h3 className="text-2xl font-headline font-extrabold text-on-surface mb-4 tracking-tight">
-                    About this event
-                  </h3>
-                  <p className="text-on-surface-variant text-base leading-relaxed">
-                    {event.description?.trim() ||
-                      'Join us for this BoothBuzz community exhibition. More details will be shared closer to the date.'}
+              <div className="xl:col-span-2 space-y-4 min-w-0">
+                <div className="rounded-2xl bg-surface-container-low/80 p-4 ghost-border border border-outline-variant/10">
+                  <h3 className="text-sm font-headline font-bold text-on-surface mb-2 tracking-tight">About</h3>
+                  <p
+                    id="event-detail-description"
+                    className={`text-on-surface-variant text-sm leading-relaxed ${descExpanded ? '' : 'line-clamp-[12]'}`}
+                  >
+                    {aboutText}
                   </p>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="flex items-center gap-3 p-4 rounded-2xl bg-surface-container-lowest ghost-border">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-fixed text-primary">
-                      <Calendar className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-outline uppercase tracking-wide">Date</p>
-                      <p className="text-on-surface font-semibold font-headline">{eventDate}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 p-4 rounded-2xl bg-surface-container-lowest ghost-border">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-fixed text-primary">
-                      <Clock className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-outline uppercase tracking-wide">Time</p>
-                      <p className="text-on-surface font-semibold font-headline">{event.time ?? '—'}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 p-4 rounded-2xl bg-surface-container-lowest ghost-border sm:col-span-2">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-fixed text-primary">
-                      <MapPin className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-outline uppercase tracking-wide">Venue</p>
-                      <p className="text-on-surface font-semibold font-headline">
-                        {event.venue}
-                        {event.city ? `, ${event.city}` : ''}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 p-4 rounded-2xl bg-surface-container-lowest ghost-border">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-fixed text-primary">
-                      <Users className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-outline uppercase tracking-wide">Attendees</p>
-                      <p className="text-on-surface font-semibold font-headline">
-                        {event.attendees ?? 0} / {event.maxCapacity ?? 0}
-                      </p>
-                    </div>
-                  </div>
+                  {showAboutToggle && (
+                    <button
+                      type="button"
+                      className="mt-2 text-sm font-semibold text-primary hover:underline"
+                      aria-expanded={descExpanded}
+                      aria-controls="event-detail-description"
+                      onClick={() => setDescExpanded((v) => !v)}
+                    >
+                      {descExpanded ? 'Show less' : 'Show more'}
+                    </button>
+                  )}
                 </div>
 
                 {hasSponsor && (
-                  <div className="pt-2">
-                    <h3 className="text-sm font-bold text-outline uppercase tracking-wider mb-3 flex items-center gap-2">
-                      <Award className="h-4 w-4 text-primary" />
+                  <div className="rounded-2xl bg-primary-fixed/30 p-3 ghost-border border border-outline-variant/10">
+                    <h3 className="text-[10px] font-bold text-outline uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                      <Award className="h-3.5 w-3.5 text-primary" />
                       {sponsorRoleLabel}
                     </h3>
-                    <div className="flex items-center gap-3 p-5 rounded-2xl bg-primary-fixed/40 ghost-border">
+                    <div className="flex items-center gap-2 min-w-0">
                       {showSponsorLogo && (
                         <img
                           src={sponsorLogo}
                           alt=""
-                          className="h-12 w-auto object-contain"
+                          className="h-9 w-auto max-w-[100px] object-contain shrink-0"
                           onError={(e) => {
                             (e.target as HTMLImageElement).style.display = 'none';
                           }}
                         />
                       )}
-                      {sponsorName && <span className="font-semibold text-on-surface font-headline">{sponsorName}</span>}
+                      {sponsorName && (
+                        <span className="font-semibold text-on-surface font-headline text-sm truncate">{sponsorName}</span>
+                      )}
                     </div>
                   </div>
                 )}
               </div>
 
-              <div className="md:col-span-4 space-y-6">
-                <div className="bg-surface-container-lowest p-6 rounded-3xl shadow-editorial ghost-border">
-                  <h3 className="text-lg font-headline font-bold text-on-surface mb-5">Organizer</h3>
-                  <div className="flex items-center gap-4 mb-6">
-                    <div className="w-14 h-14 rounded-2xl bg-primary-container flex items-center justify-center text-on-primary font-black text-xl font-headline">
+              <div className="xl:col-span-1 space-y-4 min-w-0">
+                <div className="bg-surface-container-lowest p-4 rounded-2xl shadow-editorial ghost-border">
+                  <h3 className="text-sm font-headline font-bold text-on-surface mb-3">Organizer</h3>
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-11 h-11 rounded-xl bg-primary-container flex items-center justify-center text-on-primary font-black text-base font-headline shrink-0">
                       BB
                     </div>
-                    <div>
-                      <h4 className="font-extrabold text-on-surface font-headline leading-tight">BoothBuzz</h4>
-                      <p className="text-sm text-primary font-medium">Verified organizer</p>
+                    <div className="min-w-0">
+                      <h4 className="font-bold text-on-surface font-headline text-sm leading-tight">BoothBuzz</h4>
+                      <p className="text-xs text-primary font-medium">Verified organizer</p>
                     </div>
                   </div>
-                  <div className="space-y-3 pt-4 border-t border-outline-variant/15">
+                  <div className="space-y-2 pt-3 border-t border-outline-variant/15">
                     <a
                       href="mailto:info@boothbuzz.in"
-                      className="w-full py-3 rounded-xl border border-outline-variant/25 text-on-surface font-semibold hover:bg-surface-container-low transition-all flex items-center justify-center gap-2"
+                      className="w-full py-2.5 rounded-lg border border-outline-variant/25 text-on-surface text-sm font-semibold hover:bg-surface-container-low transition-all flex items-center justify-center gap-2"
                     >
                       <Mail className="h-4 w-4" />
                       Contact organizer
@@ -395,7 +477,7 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
                         onClose();
                         document.getElementById('events')?.scrollIntoView({ behavior: 'smooth' });
                       }}
-                      className="w-full py-3 rounded-xl bg-secondary-fixed text-on-secondary-fixed font-semibold hover:opacity-90 transition-all flex items-center justify-center gap-2"
+                      className="w-full py-2.5 rounded-lg bg-secondary-fixed text-on-secondary-fixed text-sm font-semibold hover:opacity-90 transition-all flex items-center justify-center gap-2"
                     >
                       <Info className="h-4 w-4" />
                       View all events
@@ -403,19 +485,9 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
                   </div>
                 </div>
 
-                <div className="bg-surface-container-lowest p-4 rounded-3xl shadow-editorial ghost-border">
-                  <div className="aspect-video rounded-2xl overflow-hidden mb-3 bg-surface-container-low">
-                    <img
-                      src={coverImage}
-                      alt=""
-                      className="w-full h-full object-cover opacity-90"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = DEFAULT_EVENT_IMAGE;
-                      }}
-                    />
-                  </div>
-                  <h4 className="font-bold font-headline text-on-surface">Location</h4>
-                  <p className="text-sm text-on-surface-variant mt-1 mb-3">
+                <div className="bg-surface-container-lowest p-4 rounded-2xl shadow-editorial ghost-border">
+                  <h4 className="font-bold font-headline text-on-surface text-sm">Location</h4>
+                  <p className="text-xs text-on-surface-variant mt-1 mb-2 leading-snug">
                     {event.venue}
                     {event.city ? `, ${event.city}` : ''}
                   </p>
@@ -423,9 +495,9 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
                     href={mapsUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-primary text-sm font-bold inline-flex items-center gap-1 hover:gap-2 transition-all"
+                    className="text-primary text-xs font-bold inline-flex items-center gap-1 hover:gap-1.5 transition-all"
                   >
-                    Get directions <ArrowRight className="h-4 w-4" />
+                    Get directions <ArrowRight className="h-3.5 w-3.5" />
                   </a>
                 </div>
               </div>
@@ -437,40 +509,37 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
               id="event-detail-panel-layout"
               role="tabpanel"
               aria-labelledby="event-detail-tab-layout"
-              className="p-6 md:p-8"
+              className="p-4 md:p-5 flex flex-col min-h-0"
             >
               {hasLayout ? (
                 <>
-                  <p className="text-sm text-on-surface-variant mb-4 max-w-2xl">
-                    Floor plans and layout references from the organizer (from{' '}
-                    <code className="text-xs bg-surface-container-low px-1 rounded">layout_image_url</code> /{' '}
-                    <code className="text-xs bg-surface-container-low px-1 rounded">layout_image_urls</code>).
+                  <p className="text-xs text-on-surface-variant mb-3 leading-snug">
+                    Selected plan uses the thumbnails on the left. Open full resolution in a new tab.
                   </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {layoutImages.map((url, i) => (
+                  <div className="rounded-xl overflow-hidden bg-surface-container-low ghost-border border border-outline-variant/15 flex-1 min-h-[200px] max-h-[min(52vh,480px)] flex flex-col">
+                    <div className="relative flex-1 min-h-[180px] bg-surface-container">
+                      <img
+                        src={layoutImages[selectedLayoutIndex]}
+                        alt={`Layout ${selectedLayoutIndex + 1}`}
+                        className="absolute inset-0 w-full h-full object-contain object-center p-2"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.opacity = '0.3';
+                        }}
+                      />
+                    </div>
+                    <div className="shrink-0 flex flex-wrap items-center justify-between gap-2 px-3 py-2 border-t border-outline-variant/10 bg-surface-container-lowest/80">
+                      <span className="text-xs font-semibold text-on-surface font-headline">
+                        Layout {selectedLayoutIndex + 1} of {layoutImages.length}
+                      </span>
                       <a
-                        key={`${url}-${i}`}
-                        href={url}
+                        href={layoutImages[selectedLayoutIndex]}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="group block rounded-2xl overflow-hidden bg-surface-container-low ghost-border border border-outline-variant/15 shadow-sm hover:shadow-md transition-shadow"
+                        className="text-xs font-bold text-primary inline-flex items-center gap-1 hover:gap-1.5 transition-all"
                       >
-                        <div className="aspect-[4/3] overflow-hidden">
-                          <img
-                            src={url}
-                            alt={`Layout ${i + 1}`}
-                            className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).style.opacity = '0.3';
-                            }}
-                          />
-                        </div>
-                        <div className="px-3 py-2 flex items-center justify-between text-xs font-semibold text-primary">
-                          <span>Image {i + 1}</span>
-                          <span className="opacity-0 group-hover:opacity-100 transition-opacity">Open full size →</span>
-                        </div>
+                        Open full size <ArrowRight className="h-3.5 w-3.5" />
                       </a>
-                    ))}
+                    </div>
                   </div>
                 </>
               ) : (
@@ -491,7 +560,7 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
               id="event-detail-panel-exhibitors"
               role="tabpanel"
               aria-labelledby="event-detail-tab-exhibitors"
-              className="p-6 md:p-8"
+              className="p-4 md:p-6"
             >
               {regLoading ? (
                 <p className="text-sm text-on-surface-variant text-center py-12">Loading exhibitors…</p>
@@ -506,86 +575,117 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
                   </p>
                 </div>
               ) : (
-                <ul className="space-y-3">
-                  {registrations.map((row) => (
-                    <li
-                      key={row.id}
-                      className="rounded-2xl bg-surface-container-lowest ghost-border border border-outline-variant/15 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <p className="font-headline font-bold text-on-surface text-lg leading-tight">
-                          {row.exhibitor.companyName}
-                        </p>
-                        <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-sm text-on-surface-variant">
-                          {row.exhibitor.contactPerson && (
-                            <span className="inline-flex items-center gap-1">
-                              <UserCircle className="h-3.5 w-3.5 shrink-0 text-primary" />
-                              {row.exhibitor.contactPerson}
-                            </span>
-                          )}
-                          {row.exhibitor.category && <span>{row.exhibitor.category}</span>}
+                <>
+                  <div className="hidden sm:block overflow-x-auto rounded-xl border border-outline-variant/15">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-surface-container-low/80 text-[10px] font-bold uppercase tracking-wide text-outline">
+                        <tr>
+                          <th className="px-3 py-2 font-headline">Company</th>
+                          <th className="px-3 py-2 font-headline w-24">Booth</th>
+                          <th className="px-3 py-2 font-headline w-28">Status</th>
+                          <th className="px-3 py-2 font-headline w-32">City</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-outline-variant/10">
+                        {registrations.map((row) => (
+                          <tr key={row.id} className="bg-surface-container-lowest/50 hover:bg-surface-container-low/40">
+                            <td className="px-3 py-2 font-semibold text-on-surface font-headline max-w-[200px]">
+                              <span className="line-clamp-2">{row.exhibitor.companyName}</span>
+                            </td>
+                            <td className="px-3 py-2 text-on-surface-variant whitespace-nowrap">
+                              {row.boothSize?.trim() || row.exhibitor.booth?.trim() || '—'}
+                            </td>
+                            <td className="px-3 py-2">
+                              <span
+                                className={`inline-block text-[10px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded ${
+                                  row.status === 'confirmed'
+                                    ? 'bg-emerald-100 text-emerald-800'
+                                    : row.status === 'cancelled'
+                                      ? 'bg-red-100 text-red-800'
+                                      : 'bg-amber-100 text-amber-900'
+                                }`}
+                              >
+                                {row.status}
+                              </span>
+                            </td>
+                            <td className="px-3 py-2 text-on-surface-variant truncate max-w-[140px]">
+                              {row.exhibitor.city ?? '—'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <ul className="sm:hidden space-y-2" aria-label="Exhibitor registrations">
+                    {registrations.map((row) => (
+                      <li
+                        key={row.id}
+                        className="rounded-xl bg-surface-container-lowest ghost-border border border-outline-variant/15 p-3 flex flex-col gap-2"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="font-headline font-bold text-on-surface text-sm leading-tight min-w-0">
+                            {row.exhibitor.companyName}
+                          </p>
+                          <span
+                            className={`shrink-0 text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${
+                              row.status === 'confirmed'
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : row.status === 'cancelled'
+                                  ? 'bg-red-100 text-red-800'
+                                  : 'bg-amber-100 text-amber-900'
+                            }`}
+                          >
+                            {row.status}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-on-surface-variant">
+                          <span className="inline-flex items-center gap-1">
+                            <Package className="h-3 w-3 text-primary shrink-0" />
+                            {row.boothSize?.trim() || row.exhibitor.booth?.trim() || '—'}
+                          </span>
                           {row.exhibitor.city && (
                             <span className="inline-flex items-center gap-1">
-                              <MapPin className="h-3.5 w-3.5 shrink-0" />
+                              <MapPin className="h-3 w-3 shrink-0" />
                               {row.exhibitor.city}
                             </span>
                           )}
                         </div>
                         {(row.exhibitor.email || row.exhibitor.phone) && (
-                          <p className="mt-2 text-xs text-on-surface-variant truncate">
+                          <p className="text-[10px] text-on-surface-variant truncate">
                             {row.exhibitor.email}
                             {row.exhibitor.email && row.exhibitor.phone ? ' · ' : ''}
                             {row.exhibitor.phone}
                           </p>
                         )}
-                      </div>
-                      <div className="flex flex-row sm:flex-col gap-2 sm:items-end shrink-0">
-                        <span
-                          className={`text-[10px] uppercase tracking-wider font-bold px-2 py-1 rounded-md ${
-                            row.status === 'confirmed'
-                              ? 'bg-emerald-100 text-emerald-800'
-                              : row.status === 'cancelled'
-                                ? 'bg-red-100 text-red-800'
-                                : 'bg-amber-100 text-amber-900'
-                          }`}
-                        >
-                          {row.status}
-                        </span>
-                        <div className="flex items-start gap-2 rounded-xl bg-primary-fixed/30 px-3 py-2 text-sm">
-                          <Package className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-                          <div>
-                            <p className="text-[10px] font-bold text-outline uppercase tracking-wide">Booth</p>
-                            <p className="font-semibold text-on-surface font-headline">
-                              {row.boothSize?.trim() || row.exhibitor.booth?.trim() || '—'}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
+                      </li>
+                    ))}
+                  </ul>
+                </>
               )}
             </div>
           )}
 
+            </div>
+
           </div>
 
-          <div className="shrink-0 px-6 md:px-8 pb-6 pt-4 flex flex-wrap gap-3 border-t border-outline-variant/15 bg-surface-container-low/40">
-            <button
-              type="button"
-              onClick={handleRegister}
-              className="px-8 py-3.5 text-sm font-bold text-on-primary bg-primary rounded-xl hover:opacity-90 transition-opacity flex items-center gap-2 shadow-lg shadow-primary/20"
-            >
-              Register for this event <ArrowRight className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-6 py-3.5 text-sm font-semibold text-on-surface bg-surface-container-low rounded-xl hover:bg-surface-container transition-colors"
-            >
-              Close
-            </button>
-          </div>
+        </div>
+
+        <div className="sticky bottom-0 z-10 shrink-0 px-4 md:px-6 pb-4 pt-3 flex flex-wrap gap-2 border-t border-outline-variant/20 bg-surface-container-low/95 backdrop-blur-md shadow-[0_-8px_24px_rgba(11,28,48,0.08)]">
+          <button
+            type="button"
+            onClick={handleRegister}
+            className="px-6 py-2.5 text-sm font-bold text-on-primary bg-primary rounded-xl hover:opacity-90 transition-opacity flex items-center gap-2 shadow-lg shadow-primary/20"
+          >
+            Register for this event <ArrowRight className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-5 py-2.5 text-sm font-semibold text-on-surface bg-surface-container-low rounded-xl hover:bg-surface-container transition-colors"
+          >
+            Close
+          </button>
         </div>
       </div>
     </div>

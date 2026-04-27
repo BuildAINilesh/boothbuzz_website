@@ -1,20 +1,44 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Phone, Mail, MapPin, Menu, X, Calendar, Users, LayoutGrid, Megaphone } from 'lucide-react';
 import { useUsers, useEvents, useVenues, useVendors, useExhibitors } from './hooks/useSupabaseData';
 import Gallery from './gallery';
 import { Events } from './events';
 import { Exhibitor } from './exhibitor';
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { BannerCarousel } from './components/BannerCarousel';
 import { AdSlot } from './components/AdSlot';
 import { ExhibitorDashboard } from './components/ExhibitorDashboard';
+import { ExhibitorPortal } from './components/ExhibitorPortal';
+import { AuthModal } from './components/AuthModal';
+import { supabase } from './supabase';
 import logo from './assets/newlogo.png';
 
-const NAV_LINKS = ['Home', 'About', 'Gallery', 'Events', 'Dashboard', 'Exhibitors', 'Contact'];
-
-function App() {
+function AppContent() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState('home');
+  const { user } = useAuth();
+  const [hasDevExhibitorSession, setHasDevExhibitorSession] = useState<boolean>(
+    !!localStorage.getItem('boothbuzz_exhibitor_phone')
+  );
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authError, setAuthError] = useState('');
+  const [authLoading, setAuthLoading] = useState(false);
+  const exhibitorLoggedIn = !!user || hasDevExhibitorSession;
+  const DEV_OTP = '123456';
+
+  const NAV_LINKS = ['Home', 'About', 'Gallery', 'Events', 'Exhibitors', 'Contact'];
+
+  // Keep nav in sync with dev phone+OTP session in portal.
+  useEffect(() => {
+    const sync = () => setHasDevExhibitorSession(!!localStorage.getItem('boothbuzz_exhibitor_phone'));
+    window.addEventListener('storage', sync);
+    window.addEventListener('exhibitor-dev-auth-changed', sync as EventListener);
+    sync();
+    return () => {
+      window.removeEventListener('storage', sync);
+      window.removeEventListener('exhibitor-dev-auth-changed', sync as EventListener);
+    };
+  }, []);
 
   const { loading: usersLoading } = useUsers();
   const { loading: eventsLoading } = useEvents('visible');
@@ -29,13 +53,89 @@ function App() {
 
   const scrollToSection = (sectionId: string) => {
     setActiveSection(sectionId);
-    const element = document.getElementById(sectionId);
+    const targetId = sectionId === 'gallery' ? 'event-archives' : sectionId;
+    const element = document.getElementById(targetId);
     if (element) element.scrollIntoView({ behavior: 'smooth' });
     setIsMenuOpen(false);
   };
 
+  const openExhibitorLoginModal = () => {
+    setAuthError('');
+    setShowAuthModal(true);
+    setIsMenuOpen(false);
+  };
+
+  const handleExhibitorOtpLogin = async (phone: string, otp: string) => {
+    setAuthLoading(true);
+    setAuthError('');
+    try {
+      if (otp !== DEV_OTP) throw new Error('Invalid OTP. Use 123456 for development.');
+      const cleanPhone = phone.trim();
+      if (!cleanPhone) throw new Error('Phone number is required.');
+      const { data: ex, error } = await supabase
+        .from('exhibitors')
+        .select('id')
+        .eq('phone', cleanPhone)
+        .maybeSingle();
+      if (error) throw error;
+      if (!ex) throw new Error('No exhibitor found with this phone number.');
+      localStorage.setItem('boothbuzz_exhibitor_phone', cleanPhone);
+      setHasDevExhibitorSession(true);
+      window.dispatchEvent(new Event('exhibitor-dev-auth-changed'));
+      setShowAuthModal(false);
+    } catch (err: any) {
+      setAuthError(err.message || 'Login failed');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleExhibitorOtpSignup = async (email: string, _password: string, name: string, phone: string) => {
+    setAuthLoading(true);
+    setAuthError('');
+    try {
+      const cleanPhone = phone.trim();
+      if (!cleanPhone) throw new Error('Phone number is required.');
+      const { data: existing, error: existingErr } = await supabase
+        .from('exhibitors')
+        .select('id')
+        .eq('phone', cleanPhone)
+        .maybeSingle();
+      if (existingErr) throw existingErr;
+
+      if (existing?.id) {
+        const { error: updateErr } = await supabase
+          .from('exhibitors')
+          .update({
+            company_name: name,
+            contact_person: name,
+            email: email || null,
+          })
+          .eq('id', existing.id);
+        if (updateErr) throw updateErr;
+      } else {
+        const { error: insertErr } = await supabase.from('exhibitors').insert([
+          {
+            company_name: name,
+            contact_person: name,
+            email: email || null,
+            phone: cleanPhone,
+            status: 'registered',
+            payment_status: 'pending',
+            registration_date: new Date().toISOString(),
+          },
+        ]);
+        if (insertErr) throw insertErr;
+      }
+      await handleExhibitorOtpLogin(cleanPhone, DEV_OTP);
+    } catch (err: any) {
+      setAuthError(err.message || 'Signup failed');
+      setAuthLoading(false);
+    }
+  };
+
   return (
-    <AuthProvider>
+    <>
       <div className="min-h-screen bg-background text-on-surface font-body">
         <nav className="fixed top-0 left-0 right-0 z-50 bg-surface-container-lowest/90 backdrop-blur-md border-b border-outline-variant/15 ghost-border">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -64,13 +164,32 @@ function App() {
                 ))}
               </div>
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => scrollToSection('exhibitor-registration')}
-                  className="hidden sm:inline-flex items-center rounded-xl bg-primary px-4 py-2 text-sm font-semibold font-headline text-on-primary shadow-lg shadow-primary/20 hover:opacity-90 transition-opacity"
-                >
-                  Register
-                </button>
+                {exhibitorLoggedIn ? (
+                  <button
+                    type="button"
+                    onClick={() => scrollToSection('dashboard')}
+                    className="hidden sm:inline-flex items-center rounded-xl bg-primary px-4 py-2 text-sm font-semibold font-headline text-on-primary shadow-lg shadow-primary/20 hover:opacity-90 transition-opacity"
+                  >
+                    My Dashboard
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={openExhibitorLoginModal}
+                      className="hidden sm:inline-flex items-center rounded-xl border border-outline-variant/30 bg-surface-container-lowest px-4 py-2 text-sm font-semibold font-headline text-on-surface hover:bg-surface-container-low transition-colors"
+                    >
+                      Exhibitor Login
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => scrollToSection('exhibitor-registration')}
+                      className="hidden sm:inline-flex items-center rounded-xl bg-primary px-4 py-2 text-sm font-semibold font-headline text-on-primary shadow-lg shadow-primary/20 hover:opacity-90 transition-opacity"
+                    >
+                      New Exhibitor Registration
+                    </button>
+                  </>
+                )}
                 <button
                   type="button"
                   onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -98,13 +217,32 @@ function App() {
                   {item}
                 </button>
               ))}
-              <button
-                type="button"
-                onClick={() => scrollToSection('exhibitor-registration')}
-                className="mt-2 w-full rounded-xl bg-primary py-2.5 text-sm font-semibold text-on-primary"
-              >
-                Register as exhibitor
-              </button>
+              {exhibitorLoggedIn ? (
+                <button
+                  type="button"
+                  onClick={() => scrollToSection('dashboard')}
+                  className="mt-2 w-full rounded-xl bg-primary py-2.5 text-sm font-semibold text-on-primary"
+                >
+                  My Dashboard
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={openExhibitorLoginModal}
+                    className="mt-2 w-full rounded-xl border border-outline-variant/25 py-2.5 text-sm font-semibold text-on-surface"
+                  >
+                    Exhibitor Login
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => scrollToSection('exhibitor-registration')}
+                    className="mt-2 w-full rounded-xl bg-primary py-2.5 text-sm font-semibold text-on-primary"
+                  >
+                    New Exhibitor Registration
+                  </button>
+                </>
+              )}
             </div>
           )}
         </nav>
@@ -170,11 +308,19 @@ function App() {
             <Events />
           </section>
 
-          <section id="dashboard" className="py-24 bg-surface-container-low/30 border-y border-outline-variant/10">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              <ExhibitorDashboard onScrollToEvents={() => scrollToSection('events')} />
-            </div>
-          </section>
+          {exhibitorLoggedIn && (
+            <section id="dashboard" className="py-24 bg-surface-container-low/30 border-y border-outline-variant/10">
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <ExhibitorDashboard onScrollToEvents={() => scrollToSection('events')} />
+              </div>
+            </section>
+          )}
+
+          {exhibitorLoggedIn && (
+            <section id="portal" className="py-24 bg-background border-y border-outline-variant/10">
+              <ExhibitorPortal />
+            </section>
+          )}
 
           <section id="exhibitors" className="py-24 bg-indigo-50/30">
             <Exhibitor />
@@ -270,6 +416,22 @@ function App() {
           </footer>
         </main>
       </div>
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        onLogin={handleExhibitorOtpLogin}
+        onSignup={handleExhibitorOtpSignup}
+        loading={authLoading}
+        error={authError}
+      />
+    </>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
     </AuthProvider>
   );
 }

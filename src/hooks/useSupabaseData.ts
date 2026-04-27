@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase, isSupabaseConfigured } from '../supabase';
-import { User, Event, Venue, Vendor, Exhibitor, Testimonial, WebsiteAd } from '../types';
+import { User, Event, Venue, Vendor, Exhibitor, Testimonial, WebsiteAd, MyEventRegistration } from '../types';
 
 /** Trim, strip BOM, strip wrapping quotes (common DB/CSV paste). */
 function scrubEventImageCell(v: unknown): string | null {
@@ -442,6 +442,13 @@ export const useEvents = (displayFilter: EventsDisplayFilter = 'visible') => {
           status: row.status ?? 'draft',
           attendees: row.attendees ?? 0,
           maxCapacity: row.max_capacity ?? 0,
+          stallSlotsTotal: (() => {
+            const v = row.stall_slots_total;
+            if (v == null || v === '') return null;
+            const n = Number(v);
+            return Number.isFinite(n) && n > 0 ? n : null;
+          })(),
+          registeredExhibitorCount: 0,
           planType: row.plan_type ?? null,
           vendors: (row.vendor_ids ?? []).map((id: string) => String(id)),
           venueId: row.venue_id ?? null,
@@ -458,7 +465,27 @@ export const useEvents = (displayFilter: EventsDisplayFilter = 'visible') => {
         };
       });
 
-      setEvents(mapped);
+      const ids = mapped.map((e) => e.id).filter(Boolean);
+      const regCounts = new Map<string, number>();
+      if (ids.length > 0) {
+        const { data: regRows, error: regCountError } = await supabase
+          .from('event_registrations')
+          .select('event_id, status')
+          .in('event_id', ids);
+        if (!regCountError && regRows) {
+          for (const r of regRows as { event_id: string; status?: string | null }[]) {
+            if ((r.status ?? '').toLowerCase() === 'cancelled') continue;
+            regCounts.set(r.event_id, (regCounts.get(r.event_id) ?? 0) + 1);
+          }
+        }
+      }
+
+      const mappedWithCounts = mapped.map((e) => ({
+        ...e,
+        registeredExhibitorCount: regCounts.get(e.id) ?? 0,
+      }));
+
+      setEvents(mappedWithCounts);
     } catch (err) {
       console.error('Error fetching events with sponsors:', err);
       setError(err instanceof Error ? `Failed to fetch events: ${err.message}` : 'Failed to fetch events');
@@ -561,6 +588,7 @@ export const useExhibitors = () => {
     gstCertificateUrl: exhibitor.gst_certificate_url ?? null,
     panCardUrl: exhibitor.pan_card_url ?? null,
     productCatalogUrl: exhibitor.product_catalog_url ?? null,
+    userId: exhibitor.user_id ?? null,
     registrationDate: exhibitor.registration_date,
     status: exhibitor.status,
     paymentStatus: exhibitor.payment_status,
@@ -569,6 +597,145 @@ export const useExhibitors = () => {
   }));
 
   return { exhibitors, loading, error, refetch };
+};
+
+export const useMyExhibitorProfile = (userId?: string | null) => {
+  const [profile, setProfile] = useState<Exhibitor | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchProfile = async () => {
+    if (!userId) {
+      setProfile(null);
+      return;
+    }
+    try {
+      setLoading(true);
+      setError(null);
+      const { data, error: qErr } = await supabase
+        .from('exhibitors')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
+      if (qErr) throw qErr;
+      const mapped: Exhibitor = {
+        id: data.id,
+        companyName: data.company_name,
+        contactPerson: data.contact_person,
+        designation: data.designation,
+        companyDescription: data.company_description,
+        website: data.website,
+        alternateEmail: data.alternate_email,
+        alternatePhone: data.alternate_phone,
+        address: data.address,
+        country: data.country,
+        state: data.state,
+        pincode: data.pincode,
+        gstNumber: data.gst_number,
+        email: data.email,
+        phone: data.phone,
+        category: data.category,
+        subCategories: normalizeSubCategories(data.sub_category),
+        city: data.city,
+        booth: data.booth,
+        companyLogoUrl: data.company_logo_url ?? null,
+        portfolioImageUrl: data.portfolio_image_url ?? null,
+        productImagesUrls: normalizeExhibitorUrlArray(data.product_images_urls),
+        imageUrls: normalizeExhibitorUrlArray(data.image_urls),
+        companyProfileUrl: data.company_profile_url ?? null,
+        gstCertificateUrl: data.gst_certificate_url ?? null,
+        panCardUrl: data.pan_card_url ?? null,
+        productCatalogUrl: data.product_catalog_url ?? null,
+        userId: data.user_id ?? null,
+        registrationDate: data.registration_date,
+        status: data.status,
+        paymentStatus: data.payment_status,
+        created_at: data.created_at,
+        updated_at: data.updated_at,
+      };
+      setProfile(mapped);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load profile');
+      setProfile(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchProfile();
+  }, [userId]);
+
+  return { profile, loading, error, refetch: fetchProfile };
+};
+
+export const useMyRegistrations = (exhibitorId?: string | null) => {
+  const [registrations, setRegistrations] = useState<MyEventRegistration[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchRegistrations = async () => {
+    if (!exhibitorId) {
+      setRegistrations([]);
+      return;
+    }
+    try {
+      setLoading(true);
+      setError(null);
+      const { data, error: qErr } = await supabase
+        .from('event_registrations')
+        .select(`
+          id,
+          booth_size,
+          special_requirements,
+          payment_method,
+          registration_date,
+          status,
+          events (
+            id,
+            title,
+            event_date,
+            event_time,
+            venue_name,
+            city,
+            event_image_url
+          )
+        `)
+        .eq('exhibitor_id', exhibitorId)
+        .order('registration_date', { ascending: false });
+      if (qErr) throw qErr;
+
+      const mapped: MyEventRegistration[] = (data ?? []).map((row: any) => ({
+        id: row.id,
+        boothSize: row.booth_size ?? null,
+        specialRequirements: row.special_requirements ?? null,
+        paymentMethod: row.payment_method ?? 'online',
+        registrationDate: row.registration_date ?? '',
+        status: row.status ?? 'pending',
+        event: {
+          id: row.events?.id ?? '',
+          title: row.events?.title ?? 'Event',
+          date: row.events?.event_date ?? '',
+          time: row.events?.event_time ?? '',
+          venue: row.events?.venue_name ?? '',
+          city: row.events?.city ?? null,
+          eventImageUrl: resolveEventImageForDisplay(row.events?.event_image_url ?? null),
+        },
+      }));
+      setRegistrations(mapped);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load registrations');
+      setRegistrations([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRegistrations();
+  }, [exhibitorId]);
+
+  return { registrations, loading, error, refetch: fetchRegistrations };
 };
 
 function mapTestimonialRow(row: any): Testimonial {

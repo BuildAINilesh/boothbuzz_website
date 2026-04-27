@@ -5,6 +5,7 @@ import { AuthModal } from './AuthModal';
 import type { Event } from '../types';
 
 const DEFAULT_EVENT_IMAGE = 'https://images.pexels.com/photos/1099816/pexels-photo-1099816.jpeg?auto=compress&cs=tinysrgb&w=1200&h=600&fit=crop';
+const DEV_OTP = '123456';
 
 interface EventRegistrationProps {
   event: Event & { image?: string | null; featured?: boolean };
@@ -117,35 +118,23 @@ export const EventRegistration: React.FC<EventRegistrationProps> = ({
     }
   };
 
-  const handleLogin = async (email: string, password: string) => {
+  const handleLogin = async (phone: string, otp: string) => {
     setLoading(true);
     setAuthError('');
     
     try {
-      console.log('Attempting login for:', email);
-      
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
+      console.log('Attempting OTP login for phone:', phone);
+      if (otp !== DEV_OTP) throw new Error('Invalid OTP. Use 123456 for development.');
 
-      if (error) {
-        console.error('Login error:', error);
-        throw error;
-      }
-
-      console.log('Login successful:', data);
-
-      // Check if user is an exhibitor
       const { data: exhibitorData, error: exhibitorError } = await supabase
         .from('exhibitors')
         .select('*')
-        .eq('email', email)
-        .single();
+        .eq('phone', phone.trim())
+        .maybeSingle();
+      if (exhibitorError) throw exhibitorError;
 
-      if (exhibitorError) {
-        console.error('Exhibitor check error after login:', exhibitorError);
-        setAuthError('This account is not registered as an exhibitor. Please sign up as an exhibitor first.');
+      if (!exhibitorData) {
+        setAuthError('No exhibitor account found for this phone number. Please sign up first.');
         return;
       }
 
@@ -161,58 +150,47 @@ export const EventRegistration: React.FC<EventRegistrationProps> = ({
     }
   };
 
-  const handleSignup = async (email: string, password: string, name: string, phone: string) => {
+  const handleSignup = async (email: string, _password: string, name: string, phone: string) => {
     setLoading(true);
     setAuthError('');
     
     try {
-      console.log('Attempting signup for:', email);
-      
-      // Create user account
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email,
-        password
-      });
+      console.log('Attempting exhibitor signup with phone:', phone);
 
-      if (authError) {
-        console.error('Signup auth error:', authError);
-        throw authError;
-      }
+      // Create or link exhibitor record
+      const { data: existing } = await supabase
+        .from('exhibitors')
+        .select('id')
+        .eq('phone', phone)
+        .maybeSingle();
 
-      console.log('Auth signup successful:', authData);
-
-      // Create exhibitor record
-      const { error: exhibitorError } = await supabase.from('exhibitors').insert([
-        {
-          company_name: name,
-          contact_person: name,
-          email,
-          phone,
-          status: 'registered',
-          payment_status: 'pending',
-          registration_date: new Date().toISOString(),
-        }
-      ]);
-
-      if (exhibitorError) {
-        console.error('Exhibitor creation error:', exhibitorError);
-        throw exhibitorError;
+      if (existing?.id) {
+        const { error: updateErr } = await supabase
+          .from('exhibitors')
+          .update({ contact_person: name, company_name: name, email: email || null })
+          .eq('id', existing.id);
+        if (updateErr) throw updateErr;
+      } else {
+        const { error: exhibitorError } = await supabase.from('exhibitors').insert([
+          {
+            company_name: name,
+            contact_person: name,
+            email: email || null,
+            phone,
+            status: 'registered',
+            payment_status: 'pending',
+            registration_date: new Date().toISOString(),
+          }
+        ]);
+        if (exhibitorError) throw exhibitorError;
       }
 
       console.log('Exhibitor record created successfully');
 
-      setExhibitor({
-        id: authData.user?.id || '',
-        company_name: name,
-        contact_person: name,
-        email,
-        phone,
-        category: '',
-        status: 'registered'
-      });
+      // Auto-login in dev mode with static OTP.
+      await handleLogin(phone, DEV_OTP);
 
       setShowAuthModal(false);
-      setCurrentStep('register');
     } catch (err: any) {
       console.error('Signup failed:', err);
       setAuthError(err.message || 'Signup failed');

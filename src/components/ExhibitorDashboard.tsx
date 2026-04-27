@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Calendar,
   CheckCircle2,
@@ -9,10 +9,13 @@ import {
   PlusCircle,
   ArrowRight,
 } from 'lucide-react';
-import { useExhibitors, useEvents } from '../hooks/useSupabaseData';
+import { useExhibitors, useEvents, useMyExhibitorProfile } from '../hooks/useSupabaseData';
+import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../supabase';
 
 const defaultImg =
   'https://images.pexels.com/photos/1099816/pexels-photo-1099816.jpeg?auto=compress&cs=tinysrgb&w=800&fit=crop';
+const DEV_EXHIBITOR_PHONE_KEY = 'boothbuzz_exhibitor_phone';
 
 /**
  * Stitch "Dashboard" screen — public snapshot using real exhibitor/event data.
@@ -20,14 +23,46 @@ const defaultImg =
 export const ExhibitorDashboard: React.FC<{ onScrollToEvents?: () => void }> = ({
   onScrollToEvents,
 }) => {
+  const { user } = useAuth();
   const { exhibitors } = useExhibitors();
   const { events } = useEvents('upcoming');
+  const { profile } = useMyExhibitorProfile(user?.id ?? null);
+  const [devCompanyName, setDevCompanyName] = useState<string | null>(null);
 
-  const primaryName = exhibitors[0]?.companyName ?? 'Your organization';
+  useEffect(() => {
+    const fetchDevExhibitor = async () => {
+      if (user) {
+        setDevCompanyName(null);
+        return;
+      }
+      const phone = localStorage.getItem(DEV_EXHIBITOR_PHONE_KEY);
+      if (!phone) {
+        setDevCompanyName(null);
+        return;
+      }
+      const { data } = await supabase
+        .from('exhibitors')
+        .select('company_name')
+        .eq('phone', phone)
+        .maybeSingle();
+      setDevCompanyName(data?.company_name ?? null);
+    };
+    fetchDevExhibitor();
+  }, [user]);
+
+  const primaryName =
+    profile?.companyName?.trim() ||
+    devCompanyName?.trim() ||
+    exhibitors[0]?.companyName ||
+    'Your organization';
   const nextEvent = events[0];
   const approved = exhibitors.filter((e) => e.status === 'confirmed' || e.status === 'checked_in').length;
   const pending = exhibitors.filter((e) => e.status === 'registered').length;
   const draft = 0;
+  const openPortalProfile = () => {
+    window.dispatchEvent(new CustomEvent('exhibitor-portal-select-tab', { detail: 'profile' }));
+    document.getElementById('portal')?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   return (
     <div className="bg-background text-on-surface font-body">
@@ -47,7 +82,7 @@ export const ExhibitorDashboard: React.FC<{ onScrollToEvents?: () => void }> = (
           <div className="flex flex-wrap gap-3">
             <button
               type="button"
-              onClick={() => document.getElementById('exhibitors')?.scrollIntoView({ behavior: 'smooth' })}
+              onClick={openPortalProfile}
               className="bg-surface-container-lowest text-primary px-5 py-3 rounded-xl font-semibold shadow-sm hover:bg-surface-container-low transition-all flex items-center gap-2 ghost-border"
             >
               <LayoutGrid className="h-5 w-5" />

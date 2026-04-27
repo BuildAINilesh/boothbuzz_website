@@ -207,7 +207,7 @@ export const Gallery: React.FC<{ title?: string }> = () => {
       </div>
 
       {/* Archives + bento */}
-      <section className="mb-12">
+      <section id="event-archives" className="mb-12">
         <div className="flex flex-col md:flex-row justify-between items-end mb-10 gap-6">
           <div>
             <h3 className="text-3xl md:text-4xl font-headline font-bold text-on-surface mb-3">Event archives</h3>

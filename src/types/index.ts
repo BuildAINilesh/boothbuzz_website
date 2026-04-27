@@ -34,6 +34,10 @@ export interface User {
   status: 'draft' | 'published' | 'ongoing' | 'completed' | 'cancelled';
   attendees: number;
   maxCapacity: number; // max_capacity from DB
+  /** When set, used with registration count for “stalls booked / total” on cards. */
+  stallSlotsTotal?: number | null;
+  /** Non-cancelled exhibitor registrations for this event (computed in useEvents). */
+  registeredExhibitorCount?: number;
   planType?: 'Plan A' | 'Plan B' | 'Plan C' | 'Custom' | null; // plan_type from DB
   vendors: string[]; // vendor_ids from DB
   venueId?: string | null; // venue_id from DB
@@ -79,6 +83,24 @@ export interface EventRegistrationWithExhibitor {
     category?: string | null;
     city?: string | null;
     booth?: string | null;
+  };
+}
+
+export interface MyEventRegistration {
+  id: string;
+  boothSize?: string | null;
+  specialRequirements?: string | null;
+  paymentMethod: string;
+  registrationDate: string;
+  status: 'pending' | 'confirmed' | 'cancelled';
+  event: {
+    id: string;
+    title: string;
+    date: string;
+    time: string;
+    venue: string;
+    city?: string | null;
+    eventImageUrl?: string | null;
   };
 }
   
@@ -145,6 +167,7 @@ export interface EventRegistrationWithExhibitor {
   gstCertificateUrl?: string | null; // gst_certificate_url from DB
   panCardUrl?: string | null; // pan_card_url from DB
   productCatalogUrl?: string | null; // product_catalog_url from DB
+  userId?: string | null; // user_id from DB (auth.users link)
     registrationDate?: string | null; // registration_date from DB
     status: 'registered' | 'confirmed' | 'checked_in' | 'cancelled';
     paymentStatus: 'pending' | 'paid' | 'refunded'; // payment_status from DB
