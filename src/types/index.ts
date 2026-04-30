@@ -34,12 +34,21 @@ export interface User {
   status: 'draft' | 'published' | 'ongoing' | 'completed' | 'cancelled';
   attendees: number;
   maxCapacity: number; // max_capacity from DB
-  /** When set, used with registration count for “stalls booked / total” on cards. */
+  /** Total stalls from events.no_of_stalls (legacy fallback: stall_slots_total). */
   stallSlotsTotal?: number | null;
+  /** Structured stall options if available (size + price + count rows from events table). */
+  stallOptions?: Array<{ size?: string | null; price: number; count?: number | null }> | null;
+  /** Minimum stall price across options or scalar fields. */
+  stallPriceMin?: number | null;
+  /** Maximum stall price across options or scalar fields. */
+  stallPriceMax?: number | null;
   /** Non-cancelled exhibitor registrations for this event (computed in useEvents). */
   registeredExhibitorCount?: number;
   planType?: 'Plan A' | 'Plan B' | 'Plan C' | 'Custom' | null; // plan_type from DB
   vendors: string[]; // vendor_ids from DB
+  organizationId?: string | null;
+  organizerName?: string | null;
+  organizerAdminName?: string | null;
   venueId?: string | null; // venue_id from DB
   createdBy?: string | null; // created_by from DB
   totalRevenue: number; // total_revenue from DB
@@ -52,6 +61,8 @@ export interface User {
   sponsorName?: string | null; // sponsor_name from DB
   sponsorLogoUrl?: string | null; // sponsor_logo_url from DB
   sponsorRole?: string | null; // role from event_sponsors table
+  organizerEmail?: string | null;
+  organizerPhone?: string | null;
   created_at: string;
   updated_at: string;
 }

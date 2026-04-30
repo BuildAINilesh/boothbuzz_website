@@ -204,6 +204,134 @@ function normalizeSubCategories(raw: unknown): string[] | null {
   return split.length ? split : null;
 }
 
+type StallOption = { size?: string | null; price: number; count?: number | null };
+
+function parseNumericLike(v: unknown): number | null {
+  if (v == null) return null;
+  if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+  const s = String(v).replace(/[^0-9.]/g, '').trim();
+  if (!s) return null;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+}
+
+function parseStallOptionsFromRow(row: Record<string, unknown>): StallOption[] | null {
+  const candidates = [
+    row.in_site_stalls,
+    row.stall_options,
+    row.stall_details,
+    row.stall_pricing,
+    row.stall_prices,
+    row.booth_prices,
+    row.size_price,
+  ];
+
+  const fromArrayLike = (input: unknown): StallOption[] => {
+    if (!Array.isArray(input)) return [];
+    const out: StallOption[] = [];
+    for (const item of input) {
+      if (item == null) continue;
+      if (typeof item === 'number' || typeof item === 'string') {
+        const p = parseNumericLike(item);
+        if (p != null && p > 0) out.push({ price: p });
+        continue;
+      }
+      if (typeof item === 'object') {
+        const obj = item as Record<string, unknown>;
+        const price = parseNumericLike(
+          obj.price ?? obj.amount ?? obj.rate ?? obj.stall_price ?? obj.booth_price
+        );
+        if (price == null || price <= 0) continue;
+        const sizeRaw = obj.stallSize ?? obj.size ?? obj.stall_size ?? obj.booth_size ?? obj.label ?? null;
+        const size = sizeRaw == null ? null : String(sizeRaw).trim() || null;
+        const countRaw =
+          obj.count ?? obj.slots ?? obj.quantity ?? obj.qty ?? obj.number_of_stalls ?? obj.stall_count ?? null;
+        const countNum = parseNumericLike(countRaw);
+        const count = countNum != null && countNum > 0 ? Math.round(countNum) : null;
+        out.push({ size, price, count });
+      }
+    }
+    return out;
+  };
+
+  const aggregateByStallSize = (rows: StallOption[]): StallOption[] => {
+    if (!rows.length) return [];
+    const bySize = new Map<string, StallOption & { _maxPrice?: number }>();
+    for (const row of rows) {
+      const key = (row.size?.trim() || 'Unspecified').toLowerCase();
+      const current = bySize.get(key);
+      if (!current) {
+        bySize.set(key, {
+          size: row.size?.trim() || 'Unspecified',
+          price: row.price,
+          _maxPrice: row.price,
+          count: row.count ?? 1,
+        });
+      } else {
+        current.count = (current.count ?? 0) + (row.count ?? 1);
+        // Keep minimum as base display price when same size has varying prices.
+        if (row.price < current.price) current.price = row.price;
+        current._maxPrice = Math.max(current._maxPrice ?? current.price, row.price);
+      }
+    }
+    return Array.from(bySize.values()).map(({ _maxPrice, ...rest }) => rest);
+  };
+
+  for (const c of candidates) {
+    if (c == null) continue;
+    if (Array.isArray(c)) {
+      const parsed = fromArrayLike(c);
+      if (parsed.length) return aggregateByStallSize(parsed);
+      continue;
+    }
+    if (typeof c === 'string') {
+      const t = c.trim();
+      if (!t) continue;
+      if (t.startsWith('[') || t.startsWith('{')) {
+        try {
+          const parsedJson = JSON.parse(t);
+          const parsed = Array.isArray(parsedJson) ? fromArrayLike(parsedJson) : fromArrayLike([parsedJson]);
+          if (parsed.length) return aggregateByStallSize(parsed);
+        } catch {
+          // continue to scalar fallback
+        }
+      }
+      // CSV-like "S:2000,M:3000" fallback
+      const parts = t.split(',').map((x) => x.trim()).filter(Boolean);
+      const csvOut: StallOption[] = [];
+      for (const p of parts) {
+        const [left, right] = p.includes(':') ? p.split(':') : p.split('-');
+        if (right != null) {
+          const price = parseNumericLike(right);
+          if (price != null && price > 0) csvOut.push({ size: left?.trim() || null, price });
+        } else {
+          const price = parseNumericLike(left);
+          if (price != null && price > 0) csvOut.push({ price });
+        }
+      }
+      if (csvOut.length) return csvOut;
+    }
+  }
+
+  // Scalar fallback fields
+  const scalarPrices = [
+    row.stall_price_min,
+    row.stall_price_max,
+    row.stall_price,
+    row.booth_price_min,
+    row.booth_price_max,
+    row.booth_price,
+    row.price_per_stall,
+  ]
+    .map(parseNumericLike)
+    .filter((n): n is number => n != null && n > 0);
+
+  if (!scalarPrices.length) return null;
+  const min = Math.min(...scalarPrices);
+  const max = Math.max(...scalarPrices);
+  return min === max ? [{ price: min }] : [{ price: min }, { price: max }];
+}
+
 // Generic hook for fetching data from Supabase
 export function useSupabaseData<T>(
   table: string,
@@ -429,8 +557,45 @@ export const useEvents = (displayFilter: EventsDisplayFilter = 'visible') => {
         }
       }
 
+      const organizerByEventId = new Map<
+        string,
+        { orgName: string | null; adminName: string | null; adminEmail: string | null; adminPhone: string | null }
+      >();
+      const eventIdsForOrganizer = Array.from(
+        new Set(
+          (eventRows ?? [])
+            .map((r: any) => r.id)
+            .filter((id: unknown) => id != null && String(id).trim() !== '')
+            .map((id: unknown) => String(id).trim())
+        )
+      );
+      if (eventIdsForOrganizer.length > 0) {
+        const { data: organizerRows, error: organizerErr } = await supabase
+          .from('event_organizer_public')
+          .select('event_id, org_name, admin_name, admin_email, admin_phone')
+          .in('event_id', eventIdsForOrganizer);
+        if (!organizerErr && organizerRows) {
+          for (const r of organizerRows as any[]) {
+            const eventId = r.event_id ? String(r.event_id).trim() : '';
+            if (!eventId) continue;
+            organizerByEventId.set(eventId, {
+              orgName: r.org_name ? String(r.org_name).trim() : null,
+              adminName: r.admin_name ? String(r.admin_name).trim() : null,
+              adminEmail: r.admin_email ? String(r.admin_email).trim() : null,
+              adminPhone: r.admin_phone ? String(r.admin_phone).trim() : null,
+            });
+          }
+        }
+      }
+
       const mapped: Event[] = (eventRows ?? []).map((row: any) => {
         const joinedSponsor = sponsorByEventId.get(normKey(row.id));
+        const organizationId = row.organization_id ? String(row.organization_id).trim() : null;
+        const organizer = organizerByEventId.get(String(row.id));
+        const stallOptions = parseStallOptionsFromRow(row);
+        const stallPrices = (stallOptions ?? []).map((o) => o.price).filter((n) => Number.isFinite(n) && n > 0);
+        const stallPriceMin = stallPrices.length ? Math.min(...stallPrices) : null;
+        const stallPriceMax = stallPrices.length ? Math.max(...stallPrices) : null;
         return {
           id: row.id,
           title: row.title ?? '',
@@ -443,14 +608,24 @@ export const useEvents = (displayFilter: EventsDisplayFilter = 'visible') => {
           attendees: row.attendees ?? 0,
           maxCapacity: row.max_capacity ?? 0,
           stallSlotsTotal: (() => {
-            const v = row.stall_slots_total;
+            // Source of truth for stalls is events.no_of_stalls.
+            // Fallbacks: derived from in_site_stalls counts, then legacy stall_slots_total.
+            const fromOptions =
+              (stallOptions ?? []).reduce((sum, o) => sum + (o.count && o.count > 0 ? o.count : 0), 0) || null;
+            const v = row.no_of_stalls ?? fromOptions ?? row.stall_slots_total;
             if (v == null || v === '') return null;
             const n = Number(v);
             return Number.isFinite(n) && n > 0 ? n : null;
           })(),
+          stallOptions: stallOptions ?? null,
+          stallPriceMin,
+          stallPriceMax,
           registeredExhibitorCount: 0,
           planType: row.plan_type ?? null,
           vendors: (row.vendor_ids ?? []).map((id: string) => String(id)),
+          organizationId,
+          organizerName: organizer?.orgName ?? row.organizer_name ?? null,
+          organizerAdminName: organizer?.adminName ?? null,
           venueId: row.venue_id ?? null,
           createdBy: row.created_by ?? null,
           totalRevenue: Number(row.total_revenue ?? 0),
@@ -460,6 +635,10 @@ export const useEvents = (displayFilter: EventsDisplayFilter = 'visible') => {
           sponsorName: joinedSponsor?.name ?? row.sponsor_name ?? null,
           sponsorLogoUrl: joinedSponsor?.logo ?? row.sponsor_logo_url ?? null,
           sponsorRole: joinedSponsor?.role ?? null,
+          organizerEmail:
+            organizer?.adminEmail ?? row.organizer_email ?? row.contact_email ?? row.email ?? null,
+          organizerPhone:
+            organizer?.adminPhone ?? row.organizer_phone ?? row.contact_phone ?? row.phone ?? null,
           created_at: row.created_at ?? '',
           updated_at: row.updated_at ?? '',
         };

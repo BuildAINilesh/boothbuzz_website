@@ -1,4 +1,4 @@
-import { Clock, MapPin, Search as SearchIcon, ArrowRight, Users, LayoutGrid, Store } from 'lucide-react';
+import { Calendar, Clock, MapPin, Search as SearchIcon, ArrowRight, Store, X } from 'lucide-react';
 import { useEvents } from './hooks/useSupabaseData';
 import React, { useId, useMemo, useState } from 'react';
 import { EventRegistration } from './components/EventRegistration';
@@ -51,9 +51,20 @@ function formatCardDate(date: string | undefined): string {
   return date.length > 12 ? date.slice(0, 12) : date;
 }
 
-function statusLabel(status: string | undefined): string {
-  if (!status) return '';
-  return status.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+const formatCurrency = (value: number) =>
+  new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(value);
+
+function EventStallPrice({ min, max }: { min?: number | null; max?: number | null }) {
+  if (min == null || min <= 0) return null;
+  const hasRange = max != null && max > min;
+  return (
+    <div className="rounded-lg border border-outline-variant/20 bg-surface-container-low/70 px-2.5 py-2">
+      <p className="text-[10px] font-bold uppercase tracking-wide text-outline">Stall price</p>
+      <p className="text-sm font-headline font-extrabold text-on-surface">
+        {formatCurrency(min)} {hasRange ? 'onwards' : ''}
+      </p>
+    </div>
+  );
 }
 
 const DESC_PREVIEW_CHARS = 140;
@@ -100,33 +111,42 @@ function EventStallBookingBlock({
   booked: number;
   stallSlotsTotal?: number | null;
 }) {
-  const total = stallSlotsTotal != null && stallSlotsTotal > 0 ? stallSlotsTotal : 0;
+  const totalFromStalls = stallSlotsTotal != null && stallSlotsTotal > 0 ? stallSlotsTotal : 0;
+  const total = totalFromStalls;
   if (total > 0) {
     const pct = Math.min(100, Math.round((booked / total) * 100));
     const full = booked >= total;
     const open = Math.max(0, total - booked);
     return (
       <div
-        className="rounded-lg border border-primary/15 bg-gradient-to-br from-primary-fixed/25 to-surface-container-low/80 p-2.5 shadow-sm"
+        className="rounded-xl border border-primary/20 bg-gradient-to-br from-primary-fixed/35 via-surface-container-lowest to-surface-container-low/70 p-3 shadow-sm"
         aria-label={`Stalls booked ${booked} of ${total}`}
       >
-        <div className="flex items-center justify-between gap-2 mb-1.5">
-          <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-on-surface">
-            <Store className="h-3.5 w-3.5 text-primary shrink-0" aria-hidden />
-            Stalls
-          </span>
-          <span className="text-xs font-headline font-extrabold tabular-nums text-on-surface">
-            {booked}
-            <span className="text-on-surface-variant font-semibold"> / {total}</span>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-outline">
+              <Store className="h-3.5 w-3.5 text-primary shrink-0" aria-hidden />
+              Stall occupancy
+            </p>
+            <p className="text-sm font-headline font-extrabold text-on-surface mt-0.5">
+              {booked} out of {total} stalls booked
+            </p>
+          </div>
+          <span
+            className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wide ${
+              full ? 'bg-tertiary-fixed text-on-tertiary-fixed' : 'bg-primary-fixed text-on-primary-fixed'
+            }`}
+          >
+            {pct}%
           </span>
         </div>
-        <div className="h-2 rounded-full bg-surface-container-high/90 overflow-hidden ring-1 ring-inset ring-outline-variant/10">
+        <div className="h-2 mt-2 rounded-full bg-surface-container-high/90 overflow-hidden ring-1 ring-inset ring-outline-variant/10">
           <div
             className={`h-full rounded-full transition-all ${full ? 'bg-tertiary' : 'bg-primary'}`}
             style={{ width: `${pct}%` }}
           />
         </div>
-        <p className="text-[10px] text-on-surface-variant mt-1.5 leading-tight">
+        <p className="text-[10px] text-on-surface-variant mt-2 leading-tight">
           {full ? 'All stall slots filled' : `${open} slot${open === 1 ? '' : 's'} still open`}
         </p>
       </div>
@@ -134,14 +154,14 @@ function EventStallBookingBlock({
   }
   if (booked > 0) {
     return (
-      <div className="rounded-lg border border-outline-variant/20 bg-surface-container-low/70 px-2.5 py-2 flex items-center gap-2">
-        <Users className="h-3.5 w-3.5 text-primary shrink-0" aria-hidden />
-        <div className="min-w-0">
-          <p className="text-[10px] font-bold uppercase tracking-wide text-outline">Exhibitors</p>
-          <p className="text-xs font-semibold text-on-surface font-headline tabular-nums">
-            {booked} registered
-          </p>
-        </div>
+      <div className="rounded-xl border border-outline-variant/20 bg-surface-container-low/70 p-3">
+        <p className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-outline">
+          <Store className="h-3.5 w-3.5 text-primary shrink-0" aria-hidden />
+          Stall occupancy
+        </p>
+        <p className="text-sm font-headline font-extrabold text-on-surface mt-0.5">
+          {booked} stalls booked
+        </p>
       </div>
     );
   }
@@ -154,6 +174,8 @@ export const Events: React.FC = () => {
   const [showRegistration, setShowRegistration] = useState(false);
   const [selectedEventForDetail, setSelectedEventForDetail] = useState<any>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [previewImageTitle, setPreviewImageTitle] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
   const [cityFilter, setCityFilter] = useState('');
   const [categoryChip, setCategoryChip] = useState<string>('All Events');
@@ -235,6 +257,16 @@ export const Events: React.FC = () => {
     setSelectedEventForDetail(null);
     setSelectedEvent(event);
     setShowRegistration(true);
+  };
+
+  const openImagePreview = (imageUrl: string, title: string) => {
+    setPreviewImage(imageUrl);
+    setPreviewImageTitle(title);
+  };
+
+  const closeImagePreview = () => {
+    setPreviewImage(null);
+    setPreviewImageTitle('');
   };
 
   const formatSponsorRoleLabel = (role?: string | null) => {
@@ -358,40 +390,34 @@ export const Events: React.FC = () => {
               aria-label="Upcoming events"
             >
               {filteredEvents.map((event) => {
-                const layoutCount = event.layoutImageUrls?.filter(Boolean).length ?? 0;
                 const booked = event.registeredExhibitorCount ?? 0;
                 return (
                   <article
                     key={event.id}
                     className="flex flex-col md:flex-row bg-surface-container-lowest rounded-2xl overflow-hidden shadow-editorial hover:shadow-editorial-md transition-all ghost-border border border-outline-variant/10 h-full min-h-0"
                   >
-                    <div className="relative aspect-[16/10] md:aspect-auto md:w-[42%] md:min-w-[140px] md:max-w-[200px] shrink-0 bg-surface-container-low overflow-hidden group md:self-stretch">
+                    <button
+                      type="button"
+                      onClick={() => openImagePreview(event.image, event.title || 'Event image')}
+                      className="relative aspect-[16/10] md:aspect-auto md:w-[42%] md:min-w-[140px] md:max-w-[200px] shrink-0 bg-surface-container-low overflow-hidden group md:self-stretch cursor-zoom-in text-left"
+                      aria-label={`Preview image for ${event.title || 'event'}`}
+                    >
                       <img
                         src={event.image}
                         alt=""
                         className="w-full h-full object-cover md:absolute md:inset-0 group-hover:scale-105 transition-transform duration-500"
                         onError={(e) => advanceEventCardImage(e, event.cardImageCandidates)}
                       />
+                      <span className="absolute bottom-2 right-2 rounded-md bg-on-surface/70 px-2 py-1 text-[10px] font-semibold text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                        View
+                      </span>
                       {event.featured && (
                         <span className="absolute top-2 left-2 text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary text-on-primary">
                           Featured
                         </span>
                       )}
-                    </div>
+                    </button>
                     <div className="p-3 sm:p-4 flex flex-col flex-1 min-h-0 min-w-0">
-                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-1.5">
-                        <span className="text-[10px] font-bold text-primary uppercase tracking-wide bg-primary-fixed px-1.5 py-0.5 rounded font-headline truncate max-w-[50%]">
-                          {event.planType || 'Event'}
-                        </span>
-                        {event.status && (
-                          <span className="text-[10px] font-medium text-on-surface-variant truncate">
-                            {statusLabel(event.status)}
-                          </span>
-                        )}
-                        <span className="text-[10px] font-medium text-secondary ml-auto shrink-0">
-                          {formatCardDate(event.date)}
-                        </span>
-                      </div>
                       <h3 className="font-bold text-on-surface font-headline text-base leading-snug mb-1 line-clamp-2">
                         {event.title}
                       </h3>
@@ -403,16 +429,14 @@ export const Events: React.FC = () => {
                       <EventCardDescription text={event.description ?? ''} />
                       <div className="space-y-2 mb-2 border-t border-outline-variant/10 pt-2 mt-auto text-[10px] text-on-surface-variant">
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                          <span className="inline-flex items-center gap-1" title="Date">
+                            <Calendar className="h-3 w-3 shrink-0 text-primary" />
+                            {formatCardDate(event.date)}
+                          </span>
                           <span className="inline-flex items-center gap-1" title="Time">
                             <Clock className="h-3 w-3 shrink-0 text-primary" />
                             {event.time || '—'}
                           </span>
-                          {layoutCount > 0 && (
-                            <span className="inline-flex items-center gap-0.5 text-primary font-semibold">
-                              <LayoutGrid className="h-3 w-3" />
-                              {layoutCount} layout{layoutCount > 1 ? 's' : ''}
-                            </span>
-                          )}
                         </div>
                         <div className="flex items-start gap-1.5 text-on-surface" title="Location">
                           <MapPin className="h-3.5 w-3.5 shrink-0 text-primary mt-0.5" aria-hidden />
@@ -423,7 +447,11 @@ export const Events: React.FC = () => {
                             ) : null}
                           </div>
                         </div>
-                        <EventStallBookingBlock booked={booked} stallSlotsTotal={event.stallSlotsTotal} />
+                        <EventStallBookingBlock
+                          booked={booked}
+                          stallSlotsTotal={event.stallSlotsTotal}
+                        />
+                        <EventStallPrice min={event.stallPriceMin} max={event.stallPriceMax} />
                       </div>
                       <div className="flex flex-col gap-1.5 pt-1">
                         <button
@@ -460,6 +488,39 @@ export const Events: React.FC = () => {
       )}
       {selectedEvent && showRegistration && (
         <EventRegistration event={selectedEvent} isOpen={showRegistration} onClose={closeRegistration} />
+      )}
+      {previewImage && (
+        <div
+          className="fixed inset-0 z-50 bg-on-surface/80 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={closeImagePreview}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Event image preview"
+        >
+          <div
+            className="relative w-full max-w-5xl max-h-[90vh] rounded-2xl overflow-hidden bg-surface-container-low border border-outline-variant/20 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={closeImagePreview}
+              className="absolute top-3 right-3 z-10 rounded-full p-2 bg-on-surface/70 text-white hover:bg-on-surface/85 transition-colors"
+              aria-label="Close image preview"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            {previewImageTitle ? (
+              <div className="absolute bottom-0 left-0 right-0 z-10 bg-gradient-to-t from-on-surface/90 to-transparent px-4 py-3 text-sm font-semibold text-white">
+                {previewImageTitle}
+              </div>
+            ) : null}
+            <img
+              src={previewImage}
+              alt={previewImageTitle || 'Event preview'}
+              className="w-full h-full max-h-[90vh] object-contain bg-surface-container"
+            />
+          </div>
+        </div>
       )}
     </>
   );

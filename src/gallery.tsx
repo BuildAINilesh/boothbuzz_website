@@ -114,10 +114,10 @@ export const Gallery: React.FC<{ title?: string }> = () => {
   }, [events, archiveFilter]);
 
   const stats = useMemo(() => {
-    const totalAttendees = events.reduce((sum, e) => sum + (Number(e.attendees) || 0), 0);
+    const totalExhibitors = events.reduce((sum, e) => sum + (Number(e.registeredExhibitorCount) || 0), 0);
     return {
       count: events.length,
-      attendees: totalAttendees,
+      exhibitors: totalExhibitors,
       cities: new Set(events.map((e) => e.city).filter(Boolean)).size,
     };
   }, [events]);
@@ -175,9 +175,9 @@ export const Gallery: React.FC<{ title?: string }> = () => {
             <p className="text-3xl md:text-4xl font-headline font-extrabold text-on-surface">{stats.count}</p>
           </div>
           <div className="text-center">
-            <p className="text-xs font-bold text-outline-variant uppercase tracking-widest mb-2">Total attendees</p>
+            <p className="text-xs font-bold text-outline-variant uppercase tracking-widest mb-2">Total exhibitors</p>
             <p className="text-3xl md:text-4xl font-headline font-extrabold text-on-surface">
-              {stats.attendees > 999 ? `${(stats.attendees / 1000).toFixed(1)}k` : stats.attendees}
+              {stats.exhibitors > 999 ? `${(stats.exhibitors / 1000).toFixed(1)}k` : stats.exhibitors}
             </p>
           </div>
           <div className="text-center">

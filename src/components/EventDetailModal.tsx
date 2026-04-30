@@ -13,6 +13,8 @@ import {
   Images,
   UserCircle,
   Package,
+  PhoneCall,
+  MessageCircle,
 } from 'lucide-react';
 import type { Event, EventRegistrationWithExhibitor } from '../types';
 import { supabase, isSupabaseConfigured } from '../supabase';
@@ -28,6 +30,8 @@ export interface EventDetailModalProps {
 }
 
 type DetailTab = 'overview' | 'layout' | 'exhibitors';
+
+const formatPrice = (n: number) => new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(n);
 
 function mapRegistrationRows(data: unknown): EventRegistrationWithExhibitor[] {
   if (!Array.isArray(data)) return [];
@@ -64,6 +68,7 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
   const [registrations, setRegistrations] = useState<EventRegistrationWithExhibitor[]>([]);
   const [regLoading, setRegLoading] = useState(false);
   const [regError, setRegError] = useState<string | null>(null);
+  const [showOrganizerContact, setShowOrganizerContact] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -151,6 +156,11 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
   };
   const sponsorRoleLabel = normalizeSponsorRole(event.sponsorRole);
   const showSponsorLogo = Boolean(sponsorLogo);
+  const stallOptions = event.stallOptions ?? [];
+  const hasStallOptions = stallOptions.length > 0;
+  const stallMin = event.stallPriceMin ?? null;
+  const stallMax = event.stallPriceMax ?? null;
+  const hasStallPrice = stallMin != null && stallMin > 0;
   const eventDate =
     event.date && typeof event.date === 'string' && event.date.includes('T')
       ? new Date(event.date).toLocaleDateString('en-IN', {
@@ -166,10 +176,6 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
     'Join us for this BoothBuzz community exhibition. More details will be shared closer to the date.';
   const showAboutToggle = aboutText.length > 220;
 
-  const eventStatusLabel = (event.status ?? '')
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, (c) => c.toUpperCase());
-
   const handleOverlayClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) onClose();
   };
@@ -182,6 +188,12 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
   const mapsUrl = event.city
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${event.venue} ${event.city}`)}`
     : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.venue)}`;
+  const organizerEmail = (event.organizerEmail || 'info@boothbuzz.in').trim();
+  const organizerPhoneRaw = (event.organizerPhone || '+91 9922196059').trim();
+  const organizerName = (event.organizerName || 'BoothBuzz').trim();
+  const organizerAdminName = (event.organizerAdminName || '').trim();
+  const organizerPhoneDial = organizerPhoneRaw.replace(/[^\d+]/g, '');
+  const organizerWhatsapp = organizerPhoneDial.replace(/^\+/, '');
 
   const tabs: { id: DetailTab; label: string; shortLabel: string; icon: React.ReactNode; disabled?: boolean }[] = [
     { id: 'overview', label: 'Overview', shortLabel: 'Overview', icon: <LayoutGrid className="h-4 w-4 shrink-0" /> },
@@ -319,20 +331,6 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
               aria-label="Event summary"
             >
               <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-x-3 gap-y-2 text-[11px] sm:text-xs">
-                <div className="flex items-start gap-1.5 min-w-0">
-                  <LayoutGrid className="h-3.5 w-3.5 shrink-0 text-primary mt-0.5" />
-                  <div className="min-w-0">
-                    <p className="font-bold text-outline uppercase tracking-wide text-[10px]">Plan</p>
-                    <p className="font-semibold text-on-surface truncate">{event.planType ?? '—'}</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-1.5 min-w-0">
-                  <Info className="h-3.5 w-3.5 shrink-0 text-primary mt-0.5" />
-                  <div className="min-w-0">
-                    <p className="font-bold text-outline uppercase tracking-wide text-[10px]">Status</p>
-                    <p className="font-semibold text-on-surface truncate">{eventStatusLabel || '—'}</p>
-                  </div>
-                </div>
                 {hasLayout && (
                   <div className="flex items-start gap-1.5 min-w-0">
                     <Images className="h-3.5 w-3.5 shrink-0 text-primary mt-0.5" />
@@ -426,6 +424,47 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
                   )}
                 </div>
 
+                {(hasStallPrice || hasStallOptions) && (
+                  <div className="rounded-2xl bg-surface-container-low/80 p-4 ghost-border border border-outline-variant/10">
+                    <h3 className="text-sm font-headline font-bold text-on-surface mb-2 tracking-tight">
+                      Stall information
+                    </h3>
+                    {hasStallPrice && (
+                      <p className="text-sm text-on-surface mb-3">
+                        <span className="font-semibold">Price:</span>{' '}
+                        <span className="font-headline font-extrabold">
+                          {formatPrice(stallMin!)}
+                          {stallMax != null && stallMax > stallMin! ? ' onwards' : ''}
+                        </span>
+                      </p>
+                    )}
+                    {hasStallOptions ? (
+                      <div className="overflow-x-auto rounded-xl border border-outline-variant/10">
+                        <table className="w-full text-left text-xs">
+                          <thead className="bg-surface-container-high/70 text-[10px] uppercase tracking-wide text-outline">
+                            <tr>
+                              <th className="px-3 py-2 font-bold">Size</th>
+                              <th className="px-3 py-2 font-bold">Stalls</th>
+                              <th className="px-3 py-2 font-bold">Price</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-outline-variant/10 bg-surface-container-lowest/60">
+                            {stallOptions.map((o, idx) => (
+                              <tr key={`${o.size ?? 'stall'}-${o.price}-${idx}`}>
+                                <td className="px-3 py-2 text-on-surface">
+                                  {o.size?.trim() ? o.size : `Option ${idx + 1}`}
+                                </td>
+                                <td className="px-3 py-2 text-on-surface-variant">{o.count ?? '—'}</td>
+                                <td className="px-3 py-2 text-on-surface font-semibold">{formatPrice(o.price)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : null}
+                  </div>
+                )}
+
                 {hasSponsor && (
                   <div className="rounded-2xl bg-primary-fixed/30 p-3 ghost-border border border-outline-variant/10">
                     <h3 className="text-[10px] font-bold text-outline uppercase tracking-wider mb-2 flex items-center gap-1.5">
@@ -456,16 +495,22 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
                   <h3 className="text-sm font-headline font-bold text-on-surface mb-3">Organizer</h3>
                   <div className="flex items-center gap-3 mb-4">
                     <div className="w-11 h-11 rounded-xl bg-primary-container flex items-center justify-center text-on-primary font-black text-base font-headline shrink-0">
-                      BB
+                      {organizerName.slice(0, 2).toUpperCase() || 'BB'}
                     </div>
                     <div className="min-w-0">
-                      <h4 className="font-bold text-on-surface font-headline text-sm leading-tight">BoothBuzz</h4>
-                      <p className="text-xs text-primary font-medium">Verified organizer</p>
+                      <h4 className="font-bold text-on-surface font-headline text-sm leading-tight">{organizerName}</h4>
+                      <p className="text-xs text-primary font-medium">
+                        {organizerAdminName ? `Admin: ${organizerAdminName}` : 'Verified organizer'}
+                      </p>
                     </div>
                   </div>
                   <div className="space-y-2 pt-3 border-t border-outline-variant/15">
                     <a
-                      href="mailto:info@boothbuzz.in"
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setShowOrganizerContact(true);
+                      }}
                       className="w-full py-2.5 rounded-lg border border-outline-variant/25 text-on-surface text-sm font-semibold hover:bg-surface-container-low transition-all flex items-center justify-center gap-2"
                     >
                       <Mail className="h-4 w-4" />
@@ -688,6 +733,76 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
           </button>
         </div>
       </div>
+      {showOrganizerContact && (
+        <div
+          className="fixed inset-0 z-[60] bg-on-surface/75 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setShowOrganizerContact(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Organizer contact options"
+        >
+          <div
+            className="w-full max-w-md rounded-2xl bg-surface-container-lowest border border-outline-variant/20 shadow-2xl p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h4 className="text-lg font-headline font-extrabold text-on-surface">Contact Organizer</h4>
+                <p className="text-sm text-on-surface-variant mt-1">Reach out instantly using any option below.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowOrganizerContact(false)}
+                className="rounded-full p-1.5 hover:bg-surface-container-low text-on-surface-variant"
+                aria-label="Close organizer contact"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="mt-4 space-y-2 text-sm">
+              <p className="text-on-surface">
+                <span className="font-semibold">Organization:</span> {organizerName}
+              </p>
+              {organizerAdminName ? (
+                <p className="text-on-surface">
+                  <span className="font-semibold">Admin:</span> {organizerAdminName}
+                </p>
+              ) : null}
+              <p className="text-on-surface">
+                <span className="font-semibold">Phone:</span> {organizerPhoneRaw}
+              </p>
+              <p className="text-on-surface">
+                <span className="font-semibold">Email:</span> {organizerEmail}
+              </p>
+            </div>
+            <div className="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <a
+                href={`tel:${organizerPhoneDial}`}
+                className="inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold bg-primary text-on-primary hover:opacity-90"
+              >
+                <PhoneCall className="h-4 w-4" />
+                Call
+              </a>
+              <a
+                href={`https://wa.me/${organizerWhatsapp}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold border border-outline-variant/25 hover:bg-surface-container-low"
+              >
+                <MessageCircle className="h-4 w-4" />
+                WhatsApp
+              </a>
+              <a
+                href={`mailto:${organizerEmail}`}
+                className="inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold border border-outline-variant/25 hover:bg-surface-container-low"
+              >
+                <Mail className="h-4 w-4" />
+                Email
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
