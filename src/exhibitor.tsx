@@ -92,7 +92,7 @@ const ExhibitorDetailModal: React.FC<{
 
     return (
         <div
-            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-3 bg-black/55 backdrop-blur-sm"
+            className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-0 sm:p-3 bg-black/55 backdrop-blur-sm"
             role="dialog"
             aria-modal="true"
             aria-labelledby="exhibitor-detail-title"
@@ -373,6 +373,12 @@ export const Exhibitor: React.FC = () => {
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const [searchQuery, setSearchQuery] = useState('');
     const [showAllExhibitorsView, setShowAllExhibitorsView] = useState(false);
+    const normalizeTenDigitPhone = (raw: string) => raw.replace(/\D/g, '').slice(-10);
+    const openExhibitorProfile = (ex: ExhibitorRecord) => {
+        setSelectedExhibitor(ex);
+        if (showAllExhibitorsView) setShowAllExhibitorsView(false);
+        setShowFileModal(true);
+    };
 
     useEffect(() => {
         const loadCategoryOptions = async () => {
@@ -579,7 +585,7 @@ export const Exhibitor: React.FC = () => {
                 company_name: `${firstName} ${lastName}`.trim(),
                 contact_person: `${firstName} ${lastName}`.trim(),
                 email,
-                phone,
+                phone: normalizeTenDigitPhone(phone),
                 category: selectedCategoryLabel,
                 company_description: companyDescription || null,
                 ...uploadedFiles
@@ -592,6 +598,9 @@ export const Exhibitor: React.FC = () => {
             // Validate required fields
             if (!insertData.company_name || !insertData.email || !insertData.phone || !selectedCategoryId || !insertData.category) {
                 throw new Error('Missing required fields');
+            }
+            if (!/^\d{10}$/.test(insertData.phone)) {
+                throw new Error('Whatsapp Mobile Number must be exactly 10 digits');
             }
             
             // Log the exact data being sent
@@ -859,7 +868,7 @@ export const Exhibitor: React.FC = () => {
         } else {
           setFormData((prev: any) => ({
             ...prev,
-            [name]: value
+            [name]: name === 'phone' || name === 'alternatePhone' ? normalizeTenDigitPhone(value) : value
           }));
         }
       };
@@ -873,7 +882,10 @@ export const Exhibitor: React.FC = () => {
             if (!formData.contactPerson) newErrors.contactPerson = 'Contact person is required';
             if (!formData.email) newErrors.email = 'Email is required';
             else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = 'Email is invalid';
-            if (!formData.phone) newErrors.phone = 'Phone is required';
+            if (!formData.phone) newErrors.phone = 'Whatsapp Mobile Number is required';
+            else if (!/^\d{10}$/.test(String(formData.phone))) {
+              newErrors.phone = 'Whatsapp Mobile Number must be exactly 10 digits';
+            }
             break;
           case 2:
             if (!formData.category) newErrors.category = 'Category is required';
@@ -931,9 +943,9 @@ export const Exhibitor: React.FC = () => {
               contact_person: formData.contactPerson,
               designation: formData.designation,
               email: formData.email,
-              phone: formData.phone,
+              phone: normalizeTenDigitPhone(formData.phone),
               alternate_email: formData.alternateEmail,
-              alternate_phone: formData.alternatePhone,
+              alternate_phone: formData.alternatePhone ? normalizeTenDigitPhone(formData.alternatePhone) : null,
               category: formData.category,
               company_description: formData.companyDescription,
               website: formData.website,
@@ -1017,14 +1029,14 @@ export const Exhibitor: React.FC = () => {
                     placeholder="contact@company.com"
                   />
                   <Field
-                    label="Phone"
+                    label="Whatsapp Mobile Number"
                     name="phone"
                     type="tel"
                     value={formData.phone}
                     onChange={handleChange}
                     error={errors.phone}
                     required
-                    placeholder="+91 98765 43210"
+                    placeholder="10-digit mobile number"
                   />
                   <Field
                     label="Company Description"
@@ -1195,12 +1207,12 @@ export const Exhibitor: React.FC = () => {
                     placeholder="Alternate email address"
                   />
                   <Field
-                    label="Alternate Phone"
+                    label="Alternate Whatsapp Mobile Number"
                     name="alternatePhone"
                     type="tel"
                     value={formData.alternatePhone}
                     onChange={handleChange}
-                    placeholder="Alternate phone number"
+                    placeholder="Alternate 10-digit mobile number"
                   />
                   </div>
               </Section>
@@ -1214,7 +1226,7 @@ export const Exhibitor: React.FC = () => {
                     <div><strong>Company:</strong> {formData.companyName}</div>
                     <div><strong>Contact:</strong> {formData.contactPerson}</div>
                     <div><strong>Email:</strong> {formData.email}</div>
-                    <div><strong>Phone:</strong> {formData.phone}</div>
+                    <div><strong>Whatsapp Mobile Number:</strong> {formData.phone}</div>
                     <div><strong>Category:</strong> {formData.category}</div>
                     <div><strong>City:</strong> {formData.city}</div>
                     <div><strong>Booth Size:</strong> {formData.boothSize}</div>
@@ -1310,10 +1322,7 @@ export const Exhibitor: React.FC = () => {
                             <button
                                 key={ex.id}
                                 type="button"
-                                onClick={() => {
-                                    setSelectedExhibitor(ex);
-                                    setShowFileModal(true);
-                                }}
+                                onClick={() => openExhibitorProfile(ex)}
                                 className={`text-left bg-gradient-to-br from-white via-indigo-50/40 to-violet-50/50 border border-indigo-100 rounded-2xl overflow-hidden hover:border-indigo-200 hover:shadow-lg hover:shadow-indigo-100/50 transition-all ${
                                     viewMode === 'list' ? 'w-full flex flex-col md:flex-row' : ''
                                 }`}
@@ -1459,10 +1468,7 @@ export const Exhibitor: React.FC = () => {
                                             )}
                                             <button
                                                 type="button"
-                                                onClick={() => {
-                                                    setSelectedExhibitor(ex);
-                                                    setShowFileModal(true);
-                                                }}
+                                                onClick={() => openExhibitorProfile(ex)}
                                                 className="text-xs font-semibold text-primary hover:opacity-80"
                                             >
                                                 View details
@@ -1535,14 +1541,17 @@ export const Exhibitor: React.FC = () => {
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Phone *</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Whatsapp Mobile Number *</label>
                 <input
                   type="tel"
                                 value={phone}
-                                onChange={(e) => setPhone(e.target.value)}
+                                inputMode="numeric"
+                                maxLength={10}
+                                pattern="[0-9]{10}"
+                                onChange={(e) => setPhone(normalizeTenDigitPhone(e.target.value))}
                                 required
                                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-300 focus:border-slate-400"
-                                placeholder="Enter phone number"
+                                placeholder="Enter 10-digit Whatsapp mobile number"
                             />
                         </div>
 
@@ -1795,10 +1804,7 @@ export const Exhibitor: React.FC = () => {
                                         <button
                                             key={`all-${ex.id}`}
                                             type="button"
-                                            onClick={() => {
-                                                setSelectedExhibitor(ex);
-                                                setShowFileModal(true);
-                                            }}
+                                            onClick={() => openExhibitorProfile(ex)}
                                             className={`text-left bg-gradient-to-br from-white via-indigo-50/40 to-violet-50/50 border border-indigo-100 rounded-2xl overflow-hidden hover:border-indigo-200 hover:shadow-lg hover:shadow-indigo-100/50 transition-all ${
                                                 viewMode === 'list' ? 'w-full flex flex-col md:flex-row' : ''
                                             }`}

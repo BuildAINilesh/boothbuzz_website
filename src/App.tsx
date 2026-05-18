@@ -12,6 +12,7 @@ import { ExhibitorPortal } from './components/ExhibitorPortal';
 import { AuthModal } from './components/AuthModal';
 import { supabase } from './supabase';
 import logo from './assets/newlogo.png';
+import { scrollToSection as scrollToSectionDom } from './utils/scrollToSection';
 
 function AppContent() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -25,6 +26,7 @@ function AppContent() {
   const [authLoading, setAuthLoading] = useState(false);
   const exhibitorLoggedIn = !!user || hasDevExhibitorSession;
   const DEV_OTP = '123456';
+  const normalizeTenDigitPhone = (raw: string) => raw.replace(/\D/g, '').slice(-10);
 
   const NAV_LINKS = ['Home', 'About', 'Gallery', 'Events', 'Exhibitors', 'Contact'];
 
@@ -53,11 +55,18 @@ function AppContent() {
 
   const scrollToSection = (sectionId: string) => {
     setActiveSection(sectionId);
-    const targetId = sectionId === 'gallery' ? 'event-archives' : sectionId;
-    const element = document.getElementById(targetId);
-    if (element) element.scrollIntoView({ behavior: 'smooth' });
+    scrollToSectionDom(sectionId);
     setIsMenuOpen(false);
   };
+
+  useEffect(() => {
+    const onNavigate = (e: Event) => {
+      const id = (e as CustomEvent<string>).detail;
+      if (typeof id === 'string') setActiveSection(id);
+    };
+    window.addEventListener('boothbuzz-navigate-section', onNavigate);
+    return () => window.removeEventListener('boothbuzz-navigate-section', onNavigate);
+  }, []);
 
   const openExhibitorLoginModal = () => {
     setAuthError('');
@@ -70,15 +79,15 @@ function AppContent() {
     setAuthError('');
     try {
       if (otp !== DEV_OTP) throw new Error('Invalid OTP. Use 123456 for development.');
-      const cleanPhone = phone.trim();
-      if (!cleanPhone) throw new Error('Phone number is required.');
+      const cleanPhone = normalizeTenDigitPhone(phone);
+      if (cleanPhone.length !== 10) throw new Error('Whatsapp Mobile Number must be exactly 10 digits.');
       const { data: ex, error } = await supabase
         .from('exhibitors')
         .select('id')
         .eq('phone', cleanPhone)
         .maybeSingle();
       if (error) throw error;
-      if (!ex) throw new Error('No exhibitor found with this phone number.');
+      if (!ex) throw new Error('No exhibitor found with this Whatsapp Mobile Number.');
       localStorage.setItem('boothbuzz_exhibitor_phone', cleanPhone);
       setHasDevExhibitorSession(true);
       window.dispatchEvent(new Event('exhibitor-dev-auth-changed'));
@@ -94,8 +103,8 @@ function AppContent() {
     setAuthLoading(true);
     setAuthError('');
     try {
-      const cleanPhone = phone.trim();
-      if (!cleanPhone) throw new Error('Phone number is required.');
+      const cleanPhone = normalizeTenDigitPhone(phone);
+      if (cleanPhone.length !== 10) throw new Error('Whatsapp Mobile Number must be exactly 10 digits.');
       const { data: existing, error: existingErr } = await supabase
         .from('exhibitors')
         .select('id')

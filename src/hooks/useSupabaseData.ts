@@ -178,6 +178,28 @@ function normalizeExhibitorUrlArray(raw: unknown): string[] | null {
   return null;
 }
 
+function resolveExhibitorImageUrl(raw: unknown): string | null {
+  if (raw == null) return null;
+  const scrubbed = scrubEventImageCell(raw);
+  if (!scrubbed) return null;
+  return resolveEventImageForDisplay(scrubbed);
+}
+
+function resolveExhibitorImageArray(raw: unknown): string[] | null {
+  const values = normalizeExhibitorUrlArray(raw) ?? [];
+  if (!values.length) return null;
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const value of values) {
+    const resolved = resolveExhibitorImageUrl(value);
+    if (resolved && !seen.has(resolved)) {
+      seen.add(resolved);
+      out.push(resolved);
+    }
+  }
+  return out.length ? out : null;
+}
+
 function normalizeSubCategories(raw: unknown): string[] | null {
   if (raw == null) return null;
   if (Array.isArray(raw)) {
@@ -407,8 +429,8 @@ export const useUsers = () => {
 
 /**
  * Public site: draft / cancelled never shown.
- * - `upcoming`: published + ongoing (Upcoming events + hero)
- * - `past`: completed only (Past events / gallery)
+ * - `upcoming`: published + ongoing and not yet past
+ * - `past`: completed OR older than today (Past events / gallery)
  * - `visible`: any showable status (e.g. app-wide loading gate)
  */
 export type EventsDisplayFilter = 'upcoming' | 'past' | 'visible';
@@ -430,14 +452,42 @@ export const useEvents = (displayFilter: EventsDisplayFilter = 'visible') => {
       setLoading(true);
       setError(null);
 
+      const startOfToday = new Date();
+      startOfToday.setHours(0, 0, 0, 0);
+      const parseEventDate = (eventDateRaw: unknown): Date | null => {
+        if (!eventDateRaw) return null;
+        const raw = String(eventDateRaw).trim();
+        if (!raw) return null;
+
+        const direct = new Date(raw);
+        if (!Number.isNaN(direct.getTime())) return direct;
+
+        const dmy = raw.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+        if (dmy) {
+          const day = Number(dmy[1]);
+          const month = Number(dmy[2]);
+          const year = Number(dmy[3]);
+          if (day >= 1 && day <= 31 && month >= 1 && month <= 12) {
+            const parsed = new Date(year, month - 1, day);
+            if (!Number.isNaN(parsed.getTime())) return parsed;
+          }
+        }
+
+        return null;
+      };
+      const isOlderThanToday = (eventDateRaw: unknown): boolean => {
+        const parsed = parseEventDate(eventDateRaw);
+        if (!parsed) return false;
+        parsed.setHours(0, 0, 0, 0);
+        return parsed.getTime() < startOfToday.getTime();
+      };
+      const isPastEvent = (statusRaw: unknown, eventDateRaw: unknown): boolean => {
+        const status = String(statusRaw ?? '').trim().toLowerCase();
+        return status === 'completed' || isOlderThanToday(eventDateRaw);
+      };
+
       let query = supabase.from('events').select('*');
-      if (displayFilter === 'upcoming') {
-        query = query.in('status', ['published', 'ongoing']);
-      } else if (displayFilter === 'past') {
-        query = query.eq('status', 'completed');
-      } else {
-        query = query.in('status', ['published', 'ongoing', 'completed']);
-      }
+      query = query.in('status', ['published', 'ongoing', 'completed']);
 
       const orderAscending = displayFilter === 'upcoming';
       const { data: eventRows, error: eventError } = await query.order('event_date', {
@@ -664,7 +714,18 @@ export const useEvents = (displayFilter: EventsDisplayFilter = 'visible') => {
         registeredExhibitorCount: regCounts.get(e.id) ?? 0,
       }));
 
-      setEvents(mappedWithCounts);
+      const filteredByDisplay = mappedWithCounts.filter((event) => {
+        if (displayFilter === 'past') {
+          return isPastEvent(event.status, event.date);
+        }
+        if (displayFilter === 'upcoming') {
+          const status = String(event.status ?? '').trim().toLowerCase();
+          return (status === 'published' || status === 'ongoing') && !isPastEvent(event.status, event.date);
+        }
+        return true;
+      });
+
+      setEvents(filteredByDisplay);
     } catch (err) {
       console.error('Error fetching events with sponsors:', err);
       setError(err instanceof Error ? `Failed to fetch events: ${err.message}` : 'Failed to fetch events');
@@ -754,15 +815,10 @@ export const useExhibitors = () => {
     subCategories: normalizeSubCategories(exhibitor.sub_category),
     city: exhibitor.city,
     booth: exhibitor.booth,
-    companyLogoUrl: exhibitor.company_logo_url ?? null,
-    portfolioImageUrl:
-      exhibitor.portfolio_image_url != null && String(exhibitor.portfolio_image_url).trim()
-        ? String(exhibitor.portfolio_image_url).trim()
-        : null,
-    productImagesUrls: Array.isArray(exhibitor.product_images_urls)
-      ? exhibitor.product_images_urls.map((item: unknown) => String(item).trim()).filter(Boolean)
-      : null,
-    imageUrls: normalizeExhibitorUrlArray(exhibitor.image_urls),
+    companyLogoUrl: resolveExhibitorImageUrl(exhibitor.company_logo_url),
+    portfolioImageUrl: resolveExhibitorImageUrl(exhibitor.portfolio_image_url),
+    productImagesUrls: resolveExhibitorImageArray(exhibitor.product_images_urls),
+    imageUrls: resolveExhibitorImageArray(exhibitor.image_urls),
     companyProfileUrl: exhibitor.company_profile_url ?? null,
     gstCertificateUrl: exhibitor.gst_certificate_url ?? null,
     panCardUrl: exhibitor.pan_card_url ?? null,
@@ -817,10 +873,10 @@ export const useMyExhibitorProfile = (userId?: string | null) => {
         subCategories: normalizeSubCategories(data.sub_category),
         city: data.city,
         booth: data.booth,
-        companyLogoUrl: data.company_logo_url ?? null,
-        portfolioImageUrl: data.portfolio_image_url ?? null,
-        productImagesUrls: normalizeExhibitorUrlArray(data.product_images_urls),
-        imageUrls: normalizeExhibitorUrlArray(data.image_urls),
+        companyLogoUrl: resolveExhibitorImageUrl(data.company_logo_url),
+        portfolioImageUrl: resolveExhibitorImageUrl(data.portfolio_image_url),
+        productImagesUrls: resolveExhibitorImageArray(data.product_images_urls),
+        imageUrls: resolveExhibitorImageArray(data.image_urls),
         companyProfileUrl: data.company_profile_url ?? null,
         gstCertificateUrl: data.gst_certificate_url ?? null,
         panCardUrl: data.pan_card_url ?? null,

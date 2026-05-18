@@ -1,6 +1,6 @@
 import { Calendar, Clock, MapPin, Search as SearchIcon, ArrowRight, Store, X } from 'lucide-react';
 import { useEvents } from './hooks/useSupabaseData';
-import React, { useId, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { EventRegistration } from './components/EventRegistration';
 import { EventDetailModal } from './components/EventDetailModal';
 import { AdSlot } from './components/AdSlot';
@@ -63,37 +63,6 @@ function EventStallPrice({ min, max }: { min?: number | null; max?: number | nul
       <p className="text-sm font-headline font-extrabold text-on-surface">
         {formatCurrency(min)} {hasRange ? 'onwards' : ''}
       </p>
-    </div>
-  );
-}
-
-const DESC_PREVIEW_CHARS = 140;
-
-function EventCardDescription({ text }: { text: string }) {
-  const descId = useId();
-  const [expanded, setExpanded] = useState(false);
-  const trimmed = text.trim();
-  if (!trimmed) {
-    return <p className="text-xs text-on-surface-variant line-clamp-3 mb-2">Details coming soon.</p>;
-  }
-  const long = trimmed.length > DESC_PREVIEW_CHARS;
-  if (!long) {
-    return <p className="text-xs text-on-surface-variant leading-snug line-clamp-3 mb-2">{trimmed}</p>;
-  }
-  return (
-    <div className="mb-2">
-      <p id={descId} className={`text-xs text-on-surface-variant leading-snug ${expanded ? '' : 'line-clamp-3'}`}>
-        {trimmed}
-      </p>
-      <button
-        type="button"
-        onClick={() => setExpanded((v) => !v)}
-        className="mt-0.5 text-xs font-semibold text-primary hover:underline"
-        aria-expanded={expanded}
-        aria-controls={descId}
-      >
-        {expanded ? 'Show less' : 'Read more'}
-      </button>
     </div>
   );
 }
@@ -394,18 +363,18 @@ export const Events: React.FC = () => {
                 return (
                   <article
                     key={event.id}
-                    className="flex flex-col md:flex-row bg-surface-container-lowest rounded-2xl overflow-hidden shadow-editorial hover:shadow-editorial-md transition-all ghost-border border border-outline-variant/10 h-full min-h-0"
+                    className="flex flex-col bg-surface-container-lowest rounded-2xl overflow-hidden shadow-editorial hover:shadow-editorial-md transition-all ghost-border border border-outline-variant/10 h-full min-h-0"
                   >
                     <button
                       type="button"
                       onClick={() => openImagePreview(event.image, event.title || 'Event image')}
-                      className="relative aspect-[16/10] md:aspect-auto md:w-[42%] md:min-w-[140px] md:max-w-[200px] shrink-0 bg-surface-container-low overflow-hidden group md:self-stretch cursor-zoom-in text-left"
+                      className="relative aspect-[21/9] shrink-0 bg-surface-container-low overflow-hidden group cursor-zoom-in text-left"
                       aria-label={`Preview image for ${event.title || 'event'}`}
                     >
                       <img
                         src={event.image}
                         alt=""
-                        className="w-full h-full object-cover md:absolute md:inset-0 group-hover:scale-105 transition-transform duration-500"
+                        className="w-full h-full object-cover absolute inset-0 group-hover:scale-105 transition-transform duration-500"
                         onError={(e) => advanceEventCardImage(e, event.cardImageCandidates)}
                       />
                       <span className="absolute bottom-2 right-2 rounded-md bg-on-surface/70 px-2 py-1 text-[10px] font-semibold text-white opacity-0 group-hover:opacity-100 transition-opacity">
@@ -421,12 +390,18 @@ export const Events: React.FC = () => {
                       <h3 className="font-bold text-on-surface font-headline text-base leading-snug mb-1 line-clamp-2">
                         {event.title}
                       </h3>
+                      {event.description?.trim() ? (
+                        <p className="text-xs text-on-surface-variant leading-snug line-clamp-3 mb-2">
+                          {event.description.trim()}
+                        </p>
+                      ) : (
+                        <p className="text-xs text-on-surface-variant line-clamp-3 mb-2">Details coming soon.</p>
+                      )}
                       {event.sponsorName?.trim() && (
                         <p className="text-[10px] text-on-surface-variant mb-1 line-clamp-1">
                           {formatSponsorRoleLabel(event.sponsorRole)}: {event.sponsorName}
                         </p>
                       )}
-                      <EventCardDescription text={event.description ?? ''} />
                       <div className="space-y-2 mb-2 border-t border-outline-variant/10 pt-2 mt-auto text-[10px] text-on-surface-variant">
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                           <span className="inline-flex items-center gap-1" title="Date">

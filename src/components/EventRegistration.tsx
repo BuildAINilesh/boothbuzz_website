@@ -28,6 +28,7 @@ export const EventRegistration: React.FC<EventRegistrationProps> = ({
   isOpen,
   onClose
 }) => {
+  const normalizeTenDigitPhone = (raw: string) => raw.replace(/\D/g, '').slice(-10);
   const [currentStep, setCurrentStep] = useState<'check' | 'auth' | 'register' | 'success'>('check');
   const [exhibitor, setExhibitor] = useState<Exhibitor | null>(null);
   const [searchEmail, setSearchEmail] = useState('');
@@ -85,8 +86,12 @@ export const EventRegistration: React.FC<EventRegistrationProps> = ({
     setError('');
     
     try {
-      const searchValue = searchMethod === 'email' ? searchEmail : searchPhone;
+      const searchValue =
+        searchMethod === 'email' ? searchEmail.trim() : normalizeTenDigitPhone(searchPhone);
       const searchField = searchMethod === 'email' ? 'email' : 'phone';
+      if (searchMethod === 'phone' && searchValue.length !== 10) {
+        throw new Error('Whatsapp Mobile Number must be exactly 10 digits.');
+      }
       
       console.log(`Checking exhibitor registration for ${searchField}: ${searchValue}`);
       
@@ -123,18 +128,20 @@ export const EventRegistration: React.FC<EventRegistrationProps> = ({
     setAuthError('');
     
     try {
-      console.log('Attempting OTP login for phone:', phone);
+      const cleanPhone = normalizeTenDigitPhone(phone);
+      console.log('Attempting OTP login for phone:', cleanPhone);
       if (otp !== DEV_OTP) throw new Error('Invalid OTP. Use 123456 for development.');
+      if (cleanPhone.length !== 10) throw new Error('Whatsapp Mobile Number must be exactly 10 digits.');
 
       const { data: exhibitorData, error: exhibitorError } = await supabase
         .from('exhibitors')
         .select('*')
-        .eq('phone', phone.trim())
+        .eq('phone', cleanPhone)
         .maybeSingle();
       if (exhibitorError) throw exhibitorError;
 
       if (!exhibitorData) {
-        setAuthError('No exhibitor account found for this phone number. Please sign up first.');
+        setAuthError('No exhibitor account found for this Whatsapp Mobile Number. Please sign up first.');
         return;
       }
 
@@ -155,13 +162,15 @@ export const EventRegistration: React.FC<EventRegistrationProps> = ({
     setAuthError('');
     
     try {
-      console.log('Attempting exhibitor signup with phone:', phone);
+      const cleanPhone = normalizeTenDigitPhone(phone);
+      console.log('Attempting exhibitor signup with phone:', cleanPhone);
+      if (cleanPhone.length !== 10) throw new Error('Whatsapp Mobile Number must be exactly 10 digits.');
 
       // Create or link exhibitor record
       const { data: existing } = await supabase
         .from('exhibitors')
         .select('id')
-        .eq('phone', phone)
+        .eq('phone', cleanPhone)
         .maybeSingle();
 
       if (existing?.id) {
@@ -176,7 +185,7 @@ export const EventRegistration: React.FC<EventRegistrationProps> = ({
             company_name: name,
             contact_person: name,
             email: email || null,
-            phone,
+            phone: cleanPhone,
             status: 'registered',
             payment_status: 'pending',
             registration_date: new Date().toISOString(),
@@ -188,7 +197,7 @@ export const EventRegistration: React.FC<EventRegistrationProps> = ({
       console.log('Exhibitor record created successfully');
 
       // Auto-login in dev mode with static OTP.
-      await handleLogin(phone, DEV_OTP);
+      await handleLogin(cleanPhone, DEV_OTP);
 
       setShowAuthModal(false);
     } catch (err: any) {
@@ -352,7 +361,7 @@ export const EventRegistration: React.FC<EventRegistrationProps> = ({
               <div>
                 <h3 className="text-xl font-semibold text-slate-900 mb-4">Check Exhibitor Registration</h3>
                 <p className="text-slate-600 mb-6">
-                  Please provide your email or phone number to check if you're already registered as an exhibitor.
+                  Please provide your email or Whatsapp Mobile Number to check if you're already registered as an exhibitor.
                 </p>
 
                 <div className="mb-4">
@@ -375,7 +384,7 @@ export const EventRegistration: React.FC<EventRegistrationProps> = ({
                           : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                       }`}
                     >
-                      Search by Phone
+                      Search by Whatsapp Mobile Number
                     </button>
                   </div>
 
@@ -392,11 +401,14 @@ export const EventRegistration: React.FC<EventRegistrationProps> = ({
                         if (searchMethod === 'email') {
                           setSearchEmail(e.target.value);
                         } else {
-                          setSearchPhone(e.target.value);
+                          setSearchPhone(normalizeTenDigitPhone(e.target.value));
                         }
                       }}
                       className="w-full pl-10 pr-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-300 focus:border-slate-400"
-                      placeholder={`Enter your ${searchMethod}`}
+                      inputMode={searchMethod === 'phone' ? 'numeric' : undefined}
+                      maxLength={searchMethod === 'phone' ? 10 : undefined}
+                      pattern={searchMethod === 'phone' ? '[0-9]{10}' : undefined}
+                      placeholder={searchMethod === 'phone' ? 'Enter 10-digit Whatsapp mobile number' : 'Enter your email'}
                     />
                   </div>
                 </div>

@@ -1,23 +1,19 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   X,
   Calendar,
   Clock,
   MapPin,
-  Users,
   Award,
   ArrowRight,
   Mail,
   Info,
   LayoutGrid,
   Images,
-  UserCircle,
-  Package,
   PhoneCall,
   MessageCircle,
 } from 'lucide-react';
-import type { Event, EventRegistrationWithExhibitor } from '../types';
-import { supabase, isSupabaseConfigured } from '../supabase';
+import type { Event } from '../types';
 
 const DEFAULT_EVENT_IMAGE =
   'https://images.pexels.com/photos/1099816/pexels-photo-1099816.jpeg?auto=compress&cs=tinysrgb&w=1200&h=600&fit=crop';
@@ -29,32 +25,9 @@ export interface EventDetailModalProps {
   onRegister: (event: Event & { image?: string | null; featured?: boolean }) => void;
 }
 
-type DetailTab = 'overview' | 'layout' | 'exhibitors';
+type DetailTab = 'overview' | 'layout';
 
 const formatPrice = (n: number) => new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(n);
-
-function mapRegistrationRows(data: unknown): EventRegistrationWithExhibitor[] {
-  if (!Array.isArray(data)) return [];
-  return data.map((r: Record<string, unknown>) => {
-    const exRaw = r.exhibitors;
-    const ex = (Array.isArray(exRaw) ? exRaw[0] : exRaw) as Record<string, unknown> | null | undefined;
-    return {
-      id: String(r.id ?? ''),
-      boothSize: r.booth_size != null ? String(r.booth_size) : null,
-      status: String(r.status ?? 'pending'),
-      registrationDate: String(r.registration_date ?? ''),
-      exhibitor: {
-        companyName: String(ex?.company_name ?? '—'),
-        contactPerson: ex?.contact_person != null ? String(ex.contact_person) : null,
-        email: ex?.email != null ? String(ex.email) : null,
-        phone: ex?.phone != null ? String(ex.phone) : null,
-        category: ex?.category != null ? String(ex.category) : null,
-        city: ex?.city != null ? String(ex.city) : null,
-        booth: ex?.booth != null ? String(ex.booth) : null,
-      },
-    };
-  });
-}
 
 export const EventDetailModal: React.FC<EventDetailModalProps> = ({
   event,
@@ -65,9 +38,6 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
   const [tab, setTab] = useState<DetailTab>('overview');
   const [descExpanded, setDescExpanded] = useState(false);
   const [selectedLayoutIndex, setSelectedLayoutIndex] = useState(0);
-  const [registrations, setRegistrations] = useState<EventRegistrationWithExhibitor[]>([]);
-  const [regLoading, setRegLoading] = useState(false);
-  const [regError, setRegError] = useState<string | null>(null);
   const [showOrganizerContact, setShowOrganizerContact] = useState(false);
 
   useEffect(() => {
@@ -77,54 +47,6 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
       setSelectedLayoutIndex(0);
     }
   }, [isOpen, event.id]);
-
-  const loadRegistrations = useCallback(async () => {
-    if (!isSupabaseConfigured() || !event.id) {
-      setRegError('Unable to load registrations.');
-      setRegistrations([]);
-      return;
-    }
-    setRegLoading(true);
-    setRegError(null);
-    const { data, error } = await supabase
-      .from('event_registrations')
-      .select(
-        `
-        id,
-        booth_size,
-        status,
-        registration_date,
-        exhibitors (
-          company_name,
-          contact_person,
-          email,
-          phone,
-          category,
-          city,
-          booth
-        )
-      `
-      )
-      .eq('event_id', event.id)
-      .order('registration_date', { ascending: false });
-
-    if (error) {
-      setRegError(error.message);
-      setRegistrations([]);
-    } else {
-      setRegistrations(mapRegistrationRows(data));
-    }
-    setRegLoading(false);
-  }, [event.id]);
-
-  useEffect(() => {
-    if (!isOpen || !event.id) {
-      setRegistrations([]);
-      setRegError(null);
-      return;
-    }
-    loadRegistrations();
-  }, [isOpen, event.id, loadRegistrations]);
 
   const layoutUrlCount = (event.layoutImageUrls?.filter(Boolean) ?? []).length;
   useEffect(() => {
@@ -202,12 +124,6 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
       label: `Layout${hasLayout ? ` (${layoutImages.length})` : ''}`,
       shortLabel: 'Layout',
       icon: <Images className="h-4 w-4 shrink-0" />,
-    },
-    {
-      id: 'exhibitors',
-      label: `Exhibitors${registrations.length ? ` (${registrations.length})` : ''}`,
-      shortLabel: 'Exhibitors',
-      icon: <Users className="h-4 w-4 shrink-0" />,
     },
   ];
 
@@ -354,7 +270,7 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
 
             <div className="shrink-0 px-3 md:px-5 pt-2 pb-2 border-b border-outline-variant/10 bg-surface-container-low/50">
               <div
-                className="grid grid-cols-3 gap-1 rounded-2xl p-1 bg-surface-container-high/80 border border-outline-variant/25 shadow-inner"
+                className="grid grid-cols-2 gap-1 rounded-2xl p-1 bg-surface-container-high/80 border border-outline-variant/25 shadow-inner"
                 role="tablist"
                 aria-label="Event detail sections"
               >
@@ -600,115 +516,6 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({
             </div>
           )}
 
-          {tab === 'exhibitors' && (
-            <div
-              id="event-detail-panel-exhibitors"
-              role="tabpanel"
-              aria-labelledby="event-detail-tab-exhibitors"
-              className="p-4 md:p-6"
-            >
-              {regLoading ? (
-                <p className="text-sm text-on-surface-variant text-center py-12">Loading exhibitors…</p>
-              ) : regError ? (
-                <p className="text-sm text-red-600 text-center py-8">{regError}</p>
-              ) : registrations.length === 0 ? (
-                <div className="text-center py-14 px-4 rounded-2xl bg-surface-container-low/40 border border-dashed border-outline-variant/20">
-                  <UserCircle className="h-12 w-12 text-outline-variant mx-auto mb-3 opacity-50" />
-                  <p className="font-headline font-semibold text-on-surface">No registrations yet</p>
-                  <p className="text-sm text-on-surface-variant mt-2 max-w-sm mx-auto">
-                    Exhibitors who register for this event will appear here with booth details.
-                  </p>
-                </div>
-              ) : (
-                <>
-                  <div className="hidden sm:block overflow-x-auto rounded-xl border border-outline-variant/15">
-                    <table className="w-full text-left text-xs">
-                      <thead className="bg-surface-container-low/80 text-[10px] font-bold uppercase tracking-wide text-outline">
-                        <tr>
-                          <th className="px-3 py-2 font-headline">Company</th>
-                          <th className="px-3 py-2 font-headline w-24">Booth</th>
-                          <th className="px-3 py-2 font-headline w-28">Status</th>
-                          <th className="px-3 py-2 font-headline w-32">City</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-outline-variant/10">
-                        {registrations.map((row) => (
-                          <tr key={row.id} className="bg-surface-container-lowest/50 hover:bg-surface-container-low/40">
-                            <td className="px-3 py-2 font-semibold text-on-surface font-headline max-w-[200px]">
-                              <span className="line-clamp-2">{row.exhibitor.companyName}</span>
-                            </td>
-                            <td className="px-3 py-2 text-on-surface-variant whitespace-nowrap">
-                              {row.boothSize?.trim() || row.exhibitor.booth?.trim() || '—'}
-                            </td>
-                            <td className="px-3 py-2">
-                              <span
-                                className={`inline-block text-[10px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded ${
-                                  row.status === 'confirmed'
-                                    ? 'bg-emerald-100 text-emerald-800'
-                                    : row.status === 'cancelled'
-                                      ? 'bg-red-100 text-red-800'
-                                      : 'bg-amber-100 text-amber-900'
-                                }`}
-                              >
-                                {row.status}
-                              </span>
-                            </td>
-                            <td className="px-3 py-2 text-on-surface-variant truncate max-w-[140px]">
-                              {row.exhibitor.city ?? '—'}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                  <ul className="sm:hidden space-y-2" aria-label="Exhibitor registrations">
-                    {registrations.map((row) => (
-                      <li
-                        key={row.id}
-                        className="rounded-xl bg-surface-container-lowest ghost-border border border-outline-variant/15 p-3 flex flex-col gap-2"
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <p className="font-headline font-bold text-on-surface text-sm leading-tight min-w-0">
-                            {row.exhibitor.companyName}
-                          </p>
-                          <span
-                            className={`shrink-0 text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${
-                              row.status === 'confirmed'
-                                ? 'bg-emerald-100 text-emerald-800'
-                                : row.status === 'cancelled'
-                                  ? 'bg-red-100 text-red-800'
-                                  : 'bg-amber-100 text-amber-900'
-                            }`}
-                          >
-                            {row.status}
-                          </span>
-                        </div>
-                        <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-on-surface-variant">
-                          <span className="inline-flex items-center gap-1">
-                            <Package className="h-3 w-3 text-primary shrink-0" />
-                            {row.boothSize?.trim() || row.exhibitor.booth?.trim() || '—'}
-                          </span>
-                          {row.exhibitor.city && (
-                            <span className="inline-flex items-center gap-1">
-                              <MapPin className="h-3 w-3 shrink-0" />
-                              {row.exhibitor.city}
-                            </span>
-                          )}
-                        </div>
-                        {(row.exhibitor.email || row.exhibitor.phone) && (
-                          <p className="text-[10px] text-on-surface-variant truncate">
-                            {row.exhibitor.email}
-                            {row.exhibitor.email && row.exhibitor.phone ? ' · ' : ''}
-                            {row.exhibitor.phone}
-                          </p>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                </>
-              )}
-            </div>
-          )}
 
             </div>
 

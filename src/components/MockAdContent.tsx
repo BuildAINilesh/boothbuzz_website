@@ -1,6 +1,12 @@
 import React from 'react';
 import type { AdFormat } from '../config/adSlots';
 import { Sparkles, Building2, Calendar, Users, ArrowRight } from 'lucide-react';
+import { scrollToContactSection } from '../utils/scrollToSection';
+
+function handleMockAdCta(e: React.MouseEvent) {
+  e.preventDefault();
+  scrollToContactSection();
+}
 
 const MOCK_ADS: Record<
   string,
@@ -93,9 +99,9 @@ function LeaderboardMock({ slotId }: { slotId: string }) {
   const seed = ad.imageSeed ?? 1;
   return (
     <a
-      href="#"
-      className="group block w-full min-h-[120px] sm:min-h-[140px] relative overflow-hidden"
-      onClick={(e) => e.preventDefault()}
+      href="#contact"
+      className="group block w-full min-h-[120px] sm:min-h-[140px] relative overflow-hidden cursor-pointer"
+      onClick={handleMockAdCta}
     >
       <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/95 via-slate-900/90 to-indigo-800/95" />
       <img
@@ -135,9 +141,9 @@ function RectangleMock({ slotId }: { slotId: string }) {
   const seed = ad.imageSeed ?? 50;
   return (
     <a
-      href="#"
-      className="group block w-full max-w-[min(400px,calc(100vw-2rem))] mx-auto rounded-2xl overflow-hidden bg-white border border-slate-200/80 shadow-lg shadow-slate-200/50 hover:shadow-xl hover:border-indigo-200/80 transition-all duration-300"
-      onClick={(e) => e.preventDefault()}
+      href="#contact"
+      className="group block w-full max-w-[min(400px,calc(100vw-2rem))] mx-auto rounded-2xl overflow-hidden bg-white border border-slate-200/80 shadow-lg shadow-slate-200/50 hover:shadow-xl hover:border-indigo-200/80 transition-all duration-300 cursor-pointer"
+      onClick={handleMockAdCta}
     >
       <div className="relative aspect-[16/10] bg-gradient-to-br from-indigo-100 to-slate-100 overflow-hidden">
         <img
@@ -172,9 +178,9 @@ function NativeMock({ slotId }: { slotId: string }) {
   const seed = ad.imageSeed ?? 40;
   return (
     <a
-      href="#"
-      className="group block w-full h-full min-h-[250px] rounded-2xl overflow-hidden bg-white border border-slate-200/80 shadow-lg shadow-slate-200/50 hover:shadow-xl hover:border-indigo-200/80 transition-all duration-300"
-      onClick={(e) => e.preventDefault()}
+      href="#contact"
+      className="group block w-full h-full min-h-[250px] rounded-2xl overflow-hidden bg-white border border-slate-200/80 shadow-lg shadow-slate-200/50 hover:shadow-xl hover:border-indigo-200/80 transition-all duration-300 cursor-pointer"
+      onClick={handleMockAdCta}
     >
       <div className="relative aspect-[4/3] bg-gradient-to-br from-indigo-100 to-slate-100 overflow-hidden">
         <img
@@ -205,13 +211,15 @@ function FooterMock() {
   return (
     <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-8">
       {FOOTER_PARTNERS.map((p) => (
-        <div
+        <button
           key={p.name}
-          className="flex flex-col items-center gap-1 px-6 py-4 rounded-xl bg-white/60 border border-slate-200/80 hover:border-indigo-200 hover:bg-white/80 transition-colors min-w-[140px]"
+          type="button"
+          onClick={handleMockAdCta}
+          className="flex flex-col items-center gap-1 px-6 py-4 rounded-xl bg-white/60 border border-slate-200/80 hover:border-indigo-200 hover:bg-white/80 transition-colors min-w-[140px] cursor-pointer"
         >
           <span className="text-sm font-bold text-slate-700">{p.name}</span>
           <span className="text-xs text-slate-500">{p.sub}</span>
-        </div>
+        </button>
       ))}
     </div>
   );
@@ -221,9 +229,9 @@ function StickyMock({ slotId }: { slotId: string }) {
   const ad = MOCK_ADS[slotId] ?? MOCK_ADS.sticky;
   return (
     <a
-      href="#"
-      className="flex items-center gap-4 px-5 py-2.5 rounded-lg bg-white border border-slate-200 shadow-lg hover:border-indigo-200 transition-colors max-w-[400px]"
-      onClick={(e) => e.preventDefault()}
+      href="#contact"
+      className="flex items-center gap-4 px-5 py-2.5 rounded-lg bg-white border border-slate-200 shadow-lg hover:border-indigo-200 transition-colors max-w-[400px] cursor-pointer"
+      onClick={handleMockAdCta}
     >
       <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center flex-shrink-0 text-white font-bold text-lg shadow-md">
         B

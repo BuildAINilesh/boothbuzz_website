@@ -26,6 +26,7 @@ export const ExhibitorPortal: React.FC = () => {
   const [saveLoading, setSaveLoading] = useState(false);
   const [saveMsg, setSaveMsg] = useState('');
   const [saveErr, setSaveErr] = useState('');
+  const normalizeTenDigitPhone = (raw: string) => raw.replace(/\D/g, '').slice(-10);
   const [registerLoadingId, setRegisterLoadingId] = useState<string | null>(null);
 
   const { profile, loading: profileLoading, refetch: refetchProfile } = useMyExhibitorProfile(user?.id ?? null);
@@ -114,15 +115,15 @@ export const ExhibitorPortal: React.FC = () => {
     setAuthError('');
     try {
       if (otp !== DEV_OTP) throw new Error('Invalid OTP. Use 123456 for development.');
-      const cleanPhone = phone.trim();
-      if (!cleanPhone) throw new Error('Phone number is required.');
+      const cleanPhone = normalizeTenDigitPhone(phone);
+      if (cleanPhone.length !== 10) throw new Error('Whatsapp Mobile Number must be exactly 10 digits.');
       const { data: ex, error } = await supabase
         .from('exhibitors')
         .select('*')
         .eq('phone', cleanPhone)
         .maybeSingle();
       if (error) throw error;
-      if (!ex) throw new Error('No exhibitor found with this phone number.');
+      if (!ex) throw new Error('No exhibitor found with this Whatsapp Mobile Number.');
       localStorage.setItem(DEV_EXHIBITOR_PHONE_KEY, cleanPhone);
       setDevPhoneSession(cleanPhone);
       setDevProfile({
@@ -151,10 +152,12 @@ export const ExhibitorPortal: React.FC = () => {
     setAuthLoading(true);
     setAuthError('');
     try {
+      const cleanPhone = normalizeTenDigitPhone(phone);
+      if (cleanPhone.length !== 10) throw new Error('Whatsapp Mobile Number must be exactly 10 digits.');
       const { data: existing, error: existingErr } = await supabase
         .from('exhibitors')
         .select('id')
-        .eq('phone', phone)
+        .eq('phone', cleanPhone)
         .maybeSingle();
       if (existingErr) throw existingErr;
 
@@ -171,7 +174,7 @@ export const ExhibitorPortal: React.FC = () => {
             company_name: name,
             contact_person: name,
             email: email || null,
-            phone,
+            phone: cleanPhone,
             status: 'registered',
             payment_status: 'pending',
             registration_date: new Date().toISOString(),
@@ -179,7 +182,7 @@ export const ExhibitorPortal: React.FC = () => {
         ]);
         if (insertErr) throw insertErr;
       }
-      await handleLogin(phone, DEV_OTP);
+      await handleLogin(cleanPhone, DEV_OTP);
     } catch (err: any) {
       setAuthError(err.message || 'Signup failed');
     } finally {
@@ -192,13 +195,19 @@ export const ExhibitorPortal: React.FC = () => {
     setSaveLoading(true);
     setSaveErr('');
     setSaveMsg('');
+    const cleanPhone = normalizeTenDigitPhone(form.phone);
+    if (cleanPhone.length !== 10) {
+      setSaveErr('Whatsapp Mobile Number must be exactly 10 digits.');
+      setSaveLoading(false);
+      return;
+    }
     const { error } = await supabase
       .from('exhibitors')
       .update({
         company_name: form.companyName.trim(),
         contact_person: form.contactPerson.trim(),
         email: form.email.trim(),
-        phone: form.phone.trim(),
+        phone: cleanPhone,
         category: form.category.trim() || null,
         city: form.city.trim() || null,
         website: form.website.trim() || null,
@@ -252,7 +261,7 @@ export const ExhibitorPortal: React.FC = () => {
             className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-on-primary font-semibold font-headline"
           >
             <User className="h-4 w-4" />
-            Sign in with Phone + OTP
+            Sign in with Whatsapp Mobile Number + OTP
           </button>
         </div>
         <AuthModal
@@ -346,9 +355,9 @@ export const ExhibitorPortal: React.FC = () => {
                     </div>
                     <div>
                       <label className="block text-xs font-semibold uppercase tracking-wide text-on-surface-variant mb-1.5">
-                        Phone
+                        Whatsapp Mobile Number
                       </label>
-                      <input value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} className="w-full rounded-xl border border-outline-variant/20 px-3 py-2.5" placeholder="Phone" />
+                      <input value={form.phone} inputMode="numeric" maxLength={10} pattern="[0-9]{10}" onChange={(e) => setForm((f) => ({ ...f, phone: normalizeTenDigitPhone(e.target.value) }))} className="w-full rounded-xl border border-outline-variant/20 px-3 py-2.5" placeholder="10-digit Whatsapp mobile number" />
                     </div>
                   </div>
                   <div className="grid sm:grid-cols-2 gap-4">
