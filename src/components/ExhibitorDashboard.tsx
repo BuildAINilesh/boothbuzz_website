@@ -8,10 +8,13 @@ import {
   MapPin,
   PlusCircle,
   ArrowRight,
+  ShoppingBag,
 } from 'lucide-react';
 import { useExhibitors, useEvents, useMyExhibitorProfile } from '../hooks/useSupabaseData';
+import { navigateExhibitorPortal } from '../utils/exhibitorPortalNav';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../supabase';
+import { ExhibitorCustomerOrdersSection } from './ExhibitorCustomerOrdersSection';
 
 const defaultImg =
   'https://images.pexels.com/photos/1099816/pexels-photo-1099816.jpeg?auto=compress&cs=tinysrgb&w=800&fit=crop';
@@ -28,27 +31,33 @@ export const ExhibitorDashboard: React.FC<{ onScrollToEvents?: () => void }> = (
   const { events } = useEvents('upcoming');
   const { profile } = useMyExhibitorProfile(user?.id ?? null);
   const [devCompanyName, setDevCompanyName] = useState<string | null>(null);
+  const [devExhibitorId, setDevExhibitorId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchDevExhibitor = async () => {
       if (user) {
         setDevCompanyName(null);
+        setDevExhibitorId(null);
         return;
       }
       const phone = localStorage.getItem(DEV_EXHIBITOR_PHONE_KEY);
       if (!phone) {
         setDevCompanyName(null);
+        setDevExhibitorId(null);
         return;
       }
       const { data } = await supabase
         .from('exhibitors')
-        .select('company_name')
+        .select('id, company_name')
         .eq('phone', phone)
         .maybeSingle();
       setDevCompanyName(data?.company_name ?? null);
+      setDevExhibitorId(data?.id ?? null);
     };
     fetchDevExhibitor();
   }, [user]);
+
+  const exhibitorId = profile?.id ?? devExhibitorId ?? null;
 
   const primaryName =
     profile?.companyName?.trim() ||
@@ -59,10 +68,9 @@ export const ExhibitorDashboard: React.FC<{ onScrollToEvents?: () => void }> = (
   const approved = exhibitors.filter((e) => e.status === 'confirmed' || e.status === 'checked_in').length;
   const pending = exhibitors.filter((e) => e.status === 'registered').length;
   const draft = 0;
-  const openPortalProfile = () => {
-    window.dispatchEvent(new CustomEvent('exhibitor-portal-select-tab', { detail: 'profile' }));
-    document.getElementById('portal')?.scrollIntoView({ behavior: 'smooth' });
-  };
+  const openPortalProfile = () => navigateExhibitorPortal('profile');
+
+  const openPortalOrders = () => navigateExhibitorPortal('orders');
 
   return (
     <div className="bg-background text-on-surface font-body">
@@ -195,6 +203,37 @@ export const ExhibitorDashboard: React.FC<{ onScrollToEvents?: () => void }> = (
           </button>
         </div>
       </div>
+
+      <section className="bg-surface-container-lowest p-6 md:p-8 rounded-[2rem] shadow-editorial ghost-border">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <div className="flex items-start gap-3">
+            <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
+              <ShoppingBag className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-xl md:text-2xl font-bold font-headline text-on-surface">My orders</h3>
+              <p className="text-sm text-on-surface-variant mt-1">
+                Online orders from customers — contact, delivery, and line items.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={openPortalOrders}
+            className="shrink-0 text-sm font-semibold text-primary hover:underline inline-flex items-center gap-1"
+          >
+            Manage in portal <ArrowRight className="h-4 w-4" />
+          </button>
+        </div>
+
+        {exhibitorId ? (
+          <ExhibitorCustomerOrdersSection exhibitorId={exhibitorId} />
+        ) : (
+          <p className="text-sm text-on-surface-variant">
+            Link your exhibitor profile to see orders here.
+          </p>
+        )}
+      </section>
     </div>
   );
 };

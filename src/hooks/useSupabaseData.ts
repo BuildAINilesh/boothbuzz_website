@@ -1,6 +1,20 @@
 import { useState, useEffect } from 'react';
 import { supabase, isSupabaseConfigured } from '../supabase';
-import { User, Event, Venue, Vendor, Exhibitor, Testimonial, WebsiteAd, MyEventRegistration } from '../types';
+import {
+  User,
+  Event,
+  Venue,
+  Vendor,
+  Exhibitor,
+  Testimonial,
+  WebsiteAd,
+  MyEventRegistration,
+  ExhibitorCatalogueProduct,
+  CustomerOrderInput,
+  ExhibitorCustomerOrder,
+  ExhibitorCustomerOrderItem,
+  FulfillmentType,
+} from '../types';
 
 /** Trim, strip BOM, strip wrapping quotes (common DB/CSV paste). */
 function scrubEventImageCell(v: unknown): string | null {
@@ -790,46 +804,56 @@ export const useVendors = () => {
   return { vendors, loading, error, refetch };
 };
 
-export const useExhibitors = () => {
-  const { data, loading, error, refetch } = useSupabaseData<any>('exhibitors', '*', [],
-    { order: { column: 'created_at', ascending: false } });
-  
-  // Transform data to match our Exhibitor interface
-  const exhibitors: Exhibitor[] = data.map((exhibitor: any) => ({
-    id: exhibitor.id,
-    companyName: exhibitor.company_name,
-    contactPerson: exhibitor.contact_person,
-    designation: exhibitor.designation,
-    companyDescription: exhibitor.company_description,
-    website: exhibitor.website,
-    alternateEmail: exhibitor.alternate_email,
-    alternatePhone: exhibitor.alternate_phone,
-    address: exhibitor.address,
-    country: exhibitor.country,
-    state: exhibitor.state,
-    pincode: exhibitor.pincode,
-    gstNumber: exhibitor.gst_number,
-    email: exhibitor.email,
-    phone: exhibitor.phone,
-    category: exhibitor.category,
+export function mapExhibitorRow(exhibitor: Record<string, unknown>): Exhibitor {
+  return {
+    id: String(exhibitor.id ?? ''),
+    companyName: String(exhibitor.company_name ?? ''),
+    contactPerson: exhibitor.contact_person != null ? String(exhibitor.contact_person) : null,
+    designation: exhibitor.designation != null ? String(exhibitor.designation) : null,
+    companyDescription: exhibitor.company_description != null ? String(exhibitor.company_description) : null,
+    website: exhibitor.website != null ? String(exhibitor.website) : null,
+    alternateEmail: exhibitor.alternate_email != null ? String(exhibitor.alternate_email) : null,
+    alternatePhone: exhibitor.alternate_phone != null ? String(exhibitor.alternate_phone) : null,
+    address: exhibitor.address != null ? String(exhibitor.address) : null,
+    country: exhibitor.country != null ? String(exhibitor.country) : null,
+    state: exhibitor.state != null ? String(exhibitor.state) : null,
+    pincode: exhibitor.pincode != null ? String(exhibitor.pincode) : null,
+    gstNumber: exhibitor.gst_number != null ? String(exhibitor.gst_number) : null,
+    email: exhibitor.email != null ? String(exhibitor.email) : null,
+    phone: exhibitor.phone != null ? String(exhibitor.phone) : null,
+    category: exhibitor.category != null ? String(exhibitor.category) : null,
     subCategories: normalizeSubCategories(exhibitor.sub_category),
-    city: exhibitor.city,
-    booth: exhibitor.booth,
+    city: exhibitor.city != null ? String(exhibitor.city) : null,
+    booth: exhibitor.booth != null ? String(exhibitor.booth) : null,
     companyLogoUrl: resolveExhibitorImageUrl(exhibitor.company_logo_url),
     portfolioImageUrl: resolveExhibitorImageUrl(exhibitor.portfolio_image_url),
     productImagesUrls: resolveExhibitorImageArray(exhibitor.product_images_urls),
     imageUrls: resolveExhibitorImageArray(exhibitor.image_urls),
-    companyProfileUrl: exhibitor.company_profile_url ?? null,
-    gstCertificateUrl: exhibitor.gst_certificate_url ?? null,
-    panCardUrl: exhibitor.pan_card_url ?? null,
-    productCatalogUrl: exhibitor.product_catalog_url ?? null,
-    userId: exhibitor.user_id ?? null,
-    registrationDate: exhibitor.registration_date,
-    status: exhibitor.status,
-    paymentStatus: exhibitor.payment_status,
-    created_at: exhibitor.created_at,
-    updated_at: exhibitor.updated_at
-  }));
+    companyProfileUrl: exhibitor.company_profile_url != null ? String(exhibitor.company_profile_url) : null,
+    gstCertificateUrl: exhibitor.gst_certificate_url != null ? String(exhibitor.gst_certificate_url) : null,
+    panCardUrl: exhibitor.pan_card_url != null ? String(exhibitor.pan_card_url) : null,
+    productCatalogUrl: exhibitor.product_catalog_url != null ? String(exhibitor.product_catalog_url) : null,
+    userId: exhibitor.user_id != null ? String(exhibitor.user_id) : null,
+    registrationDate: exhibitor.registration_date != null ? String(exhibitor.registration_date) : null,
+    status: (exhibitor.status as Exhibitor['status']) ?? 'registered',
+    paymentStatus: (exhibitor.payment_status as Exhibitor['paymentStatus']) ?? 'pending',
+    created_at: String(exhibitor.created_at ?? ''),
+    updated_at: String(exhibitor.updated_at ?? ''),
+  };
+}
+
+export async function fetchExhibitorById(id: string): Promise<Exhibitor | null> {
+  if (!id || !isSupabaseConfigured()) return null;
+  const { data, error } = await supabase.from('exhibitors').select('*').eq('id', id).maybeSingle();
+  if (error || !data) return null;
+  return mapExhibitorRow(data as Record<string, unknown>);
+}
+
+export const useExhibitors = () => {
+  const { data, loading, error, refetch } = useSupabaseData<any>('exhibitors', '*', [],
+    { order: { column: 'created_at', ascending: false } });
+
+  const exhibitors: Exhibitor[] = data.map((row: Record<string, unknown>) => mapExhibitorRow(row));
 
   return { exhibitors, loading, error, refetch };
 };
@@ -1100,4 +1124,344 @@ export const useWebsiteAds = (sectionKey: string) => {
   }, [sectionKey]);
 
   return { ads, loading, error, refetch: fetchAds };
+};
+
+function mapCatalogueProductRow(row: Record<string, unknown>): ExhibitorCatalogueProduct {
+  const imageUrls = resolveExhibitorImageArray(row.image_urls) ?? [];
+  return {
+    id: String(row.id ?? ''),
+    exhibitorId: String(row.exhibitor_id ?? ''),
+    name: String(row.name ?? ''),
+    size: row.size != null ? String(row.size) : null,
+    price: Number(row.price ?? 0),
+    compareAtPrice: row.compare_at_price != null ? Number(row.compare_at_price) : null,
+    description: row.description != null ? String(row.description) : null,
+    imageUrls,
+    sku: row.sku != null ? String(row.sku) : null,
+    category: row.category != null ? String(row.category) : null,
+    unit: row.unit != null ? String(row.unit) : null,
+    stockQuantity: row.stock_quantity != null ? Number(row.stock_quantity) : null,
+    isActive: row.is_active !== false,
+    sortOrder: Number(row.sort_order ?? 0),
+    createdAt: String(row.created_at ?? ''),
+    updatedAt: String(row.updated_at ?? ''),
+  };
+}
+
+export type CatalogueProductInput = {
+  name: string;
+  size?: string | null;
+  price: number;
+  compareAtPrice?: number | null;
+  description?: string | null;
+  imageUrls?: string[];
+  sku?: string | null;
+  category?: string | null;
+  unit?: string | null;
+  stockQuantity?: number | null;
+  isActive?: boolean;
+  sortOrder?: number;
+};
+
+function catalogueRowFromInput(exhibitorId: string, input: CatalogueProductInput) {
+  return {
+    exhibitor_id: exhibitorId,
+    name: input.name.trim(),
+    size: input.size?.trim() || null,
+    price: input.price,
+    compare_at_price: input.compareAtPrice ?? null,
+    description: input.description?.trim() || null,
+    image_urls: input.imageUrls ?? [],
+    sku: input.sku?.trim() || null,
+    category: input.category?.trim() || null,
+    unit: input.unit?.trim() || null,
+    stock_quantity: input.stockQuantity ?? null,
+    is_active: input.isActive !== false,
+    sort_order: input.sortOrder ?? 0,
+  };
+}
+
+export const useExhibitorCatalogue = (exhibitorId: string | null) => {
+  const [products, setProducts] = useState<ExhibitorCatalogueProduct[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchProducts = async () => {
+    if (!exhibitorId || !isSupabaseConfigured()) {
+      setProducts([]);
+      return;
+    }
+    try {
+      setLoading(true);
+      setError(null);
+      const { data, error: qErr } = await supabase
+        .from('exhibitor_catalogue_products')
+        .select('*')
+        .eq('exhibitor_id', exhibitorId)
+        .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: false });
+      if (qErr) throw qErr;
+      setProducts((data ?? []).map((row) => mapCatalogueProductRow(row as Record<string, unknown>)));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load catalogue');
+      setProducts([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const createProduct = async (input: CatalogueProductInput) => {
+    if (!exhibitorId) throw new Error('No exhibitor profile');
+    const { data, error: insErr } = await supabase
+      .from('exhibitor_catalogue_products')
+      .insert([catalogueRowFromInput(exhibitorId, input)])
+      .select('*')
+      .single();
+    if (insErr) throw insErr;
+    const mapped = mapCatalogueProductRow(data as Record<string, unknown>);
+    setProducts((prev) => [mapped, ...prev]);
+    return mapped;
+  };
+
+  const updateProduct = async (id: string, input: CatalogueProductInput) => {
+    if (!exhibitorId) throw new Error('No exhibitor profile');
+    const { data, error: updErr } = await supabase
+      .from('exhibitor_catalogue_products')
+      .update(catalogueRowFromInput(exhibitorId, input))
+      .eq('id', id)
+      .eq('exhibitor_id', exhibitorId)
+      .select('*')
+      .single();
+    if (updErr) throw updErr;
+    const mapped = mapCatalogueProductRow(data as Record<string, unknown>);
+    setProducts((prev) => prev.map((p) => (p.id === id ? mapped : p)));
+    return mapped;
+  };
+
+  const deleteProduct = async (id: string) => {
+    if (!exhibitorId) throw new Error('No exhibitor profile');
+    const { error: delErr } = await supabase
+      .from('exhibitor_catalogue_products')
+      .delete()
+      .eq('id', id)
+      .eq('exhibitor_id', exhibitorId);
+    if (delErr) throw delErr;
+    setProducts((prev) => prev.filter((p) => p.id !== id));
+  };
+
+  const toggleActive = async (id: string, isActive: boolean) => {
+    if (!exhibitorId) throw new Error('No exhibitor profile');
+    const { data, error: updErr } = await supabase
+      .from('exhibitor_catalogue_products')
+      .update({ is_active: isActive })
+      .eq('id', id)
+      .eq('exhibitor_id', exhibitorId)
+      .select('*')
+      .single();
+    if (updErr) throw updErr;
+    const mapped = mapCatalogueProductRow(data as Record<string, unknown>);
+    setProducts((prev) => prev.map((p) => (p.id === id ? mapped : p)));
+    return mapped;
+  };
+
+  useEffect(() => {
+    fetchProducts();
+  }, [exhibitorId]);
+
+  return {
+    products,
+    loading,
+    error,
+    refetch: fetchProducts,
+    createProduct,
+    updateProduct,
+    deleteProduct,
+    toggleActive,
+  };
+};
+
+/** Active products for public exhibitor detail / shop. */
+export const usePublicExhibitorCatalogue = (exhibitorId: string | null) => {
+  const [products, setProducts] = useState<ExhibitorCatalogueProduct[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!exhibitorId || !isSupabaseConfigured()) {
+      setProducts([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      setError(null);
+      const { data, error: qErr } = await supabase
+        .from('exhibitor_catalogue_products')
+        .select('*')
+        .eq('exhibitor_id', exhibitorId)
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: false });
+      if (cancelled) return;
+      if (qErr) {
+        setError(qErr.message);
+        setProducts([]);
+      } else {
+        setProducts((data ?? []).map((row) => mapCatalogueProductRow(row as Record<string, unknown>)));
+      }
+      setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [exhibitorId]);
+
+  return { products, loading, error };
+};
+
+function generateOrderNumber() {
+  const t = Date.now().toString(36).toUpperCase();
+  const r = Math.random().toString(36).slice(2, 6).toUpperCase();
+  return `BB-${t}-${r}`;
+}
+
+export async function placeCustomerOrder(input: CustomerOrderInput): Promise<{
+  orderId: string;
+  orderNumber: string;
+}> {
+  const subtotal = input.items.reduce((s, i) => s + i.price * i.quantity, 0);
+  const total = subtotal;
+  const isDelivery = input.fulfillmentType === 'home_delivery';
+
+  const { data: order, error: orderErr } = await supabase
+    .from('exhibitor_customer_orders')
+    .insert([
+      {
+        exhibitor_id: input.exhibitorId,
+        order_number: generateOrderNumber(),
+        customer_name: input.customerName.trim(),
+        customer_email: input.customerEmail?.trim() || null,
+        customer_phone: input.customerPhone.trim(),
+        fulfillment_type: input.fulfillmentType,
+        delivery_address: isDelivery ? input.deliveryAddress?.trim() || null : null,
+        delivery_city: isDelivery ? input.deliveryCity?.trim() || null : null,
+        delivery_state: isDelivery ? input.deliveryState?.trim() || null : null,
+        delivery_pincode: isDelivery ? input.deliveryPincode?.trim() || null : null,
+        delivery_notes: isDelivery ? input.deliveryNotes?.trim() || null : null,
+        subtotal,
+        total,
+        payment_status: 'paid',
+        order_status: 'placed',
+        customer_notes: input.customerNotes?.trim() || null,
+      },
+    ])
+    .select('id, order_number')
+    .single();
+
+  if (orderErr || !order) throw new Error(orderErr?.message ?? 'Failed to place order');
+
+  const lineRows = input.items.map((item) => ({
+    order_id: order.id,
+    product_id: item.productId,
+    product_name: item.name,
+    product_size: item.size ?? null,
+    unit: item.unit ?? null,
+    unit_price: item.price,
+    quantity: item.quantity,
+    line_total: item.price * item.quantity,
+  }));
+
+  const { error: itemsErr } = await supabase.from('exhibitor_customer_order_items').insert(lineRows);
+  if (itemsErr) throw new Error(itemsErr.message);
+
+  return { orderId: String(order.id), orderNumber: String(order.order_number) };
+}
+
+function mapCustomerOrderRow(
+  row: Record<string, unknown>,
+  items: ExhibitorCustomerOrderItem[]
+): ExhibitorCustomerOrder {
+  return {
+    id: String(row.id ?? ''),
+    exhibitorId: String(row.exhibitor_id ?? ''),
+    orderNumber: String(row.order_number ?? ''),
+    customerName: String(row.customer_name ?? ''),
+    customerEmail: row.customer_email != null ? String(row.customer_email) : null,
+    customerPhone: String(row.customer_phone ?? ''),
+    fulfillmentType: String(row.fulfillment_type ?? 'exhibition_pickup') as FulfillmentType,
+    deliveryAddress: row.delivery_address != null ? String(row.delivery_address) : null,
+    deliveryCity: row.delivery_city != null ? String(row.delivery_city) : null,
+    deliveryState: row.delivery_state != null ? String(row.delivery_state) : null,
+    deliveryPincode: row.delivery_pincode != null ? String(row.delivery_pincode) : null,
+    deliveryNotes: row.delivery_notes != null ? String(row.delivery_notes) : null,
+    subtotal: Number(row.subtotal ?? 0),
+    total: Number(row.total ?? 0),
+    paymentStatus: String(row.payment_status ?? 'pending'),
+    orderStatus: String(row.order_status ?? 'placed'),
+    customerNotes: row.customer_notes != null ? String(row.customer_notes) : null,
+    createdAt: String(row.created_at ?? ''),
+    items,
+  };
+}
+
+export const useExhibitorCustomerOrders = (exhibitorId: string | null) => {
+  const [orders, setOrders] = useState<ExhibitorCustomerOrder[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchOrders = async () => {
+    if (!exhibitorId || !isSupabaseConfigured()) {
+      setOrders([]);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    const { data: orderRows, error: oErr } = await supabase
+      .from('exhibitor_customer_orders')
+      .select('*')
+      .eq('exhibitor_id', exhibitorId)
+      .order('created_at', { ascending: false });
+    if (oErr) {
+      setError(oErr.message);
+      setOrders([]);
+      setLoading(false);
+      return;
+    }
+    const ids = (orderRows ?? []).map((o) => o.id);
+    let itemsByOrder: Record<string, ExhibitorCustomerOrderItem[]> = {};
+    if (ids.length > 0) {
+      const { data: itemRows } = await supabase
+        .from('exhibitor_customer_order_items')
+        .select('*')
+        .in('order_id', ids);
+      for (const row of itemRows ?? []) {
+        const r = row as Record<string, unknown>;
+        const oid = String(r.order_id ?? '');
+        if (!itemsByOrder[oid]) itemsByOrder[oid] = [];
+        itemsByOrder[oid].push({
+          id: String(r.id ?? ''),
+          orderId: oid,
+          productId: r.product_id != null ? String(r.product_id) : null,
+          productName: String(r.product_name ?? ''),
+          productSize: r.product_size != null ? String(r.product_size) : null,
+          unit: r.unit != null ? String(r.unit) : null,
+          unitPrice: Number(r.unit_price ?? 0),
+          quantity: Number(r.quantity ?? 0),
+          lineTotal: Number(r.line_total ?? 0),
+        });
+      }
+    }
+    setOrders(
+      (orderRows ?? []).map((o) =>
+        mapCustomerOrderRow(o as Record<string, unknown>, itemsByOrder[String(o.id)] ?? [])
+      )
+    );
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchOrders();
+  }, [exhibitorId]);
+
+  return { orders, loading, error, refetch: fetchOrders };
 };

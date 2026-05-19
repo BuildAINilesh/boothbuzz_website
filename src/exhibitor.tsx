@@ -1,9 +1,12 @@
 import { Calendar, Clock, MapPin, ChevronLeft, ChevronRight, Users, MapPinIcon, Star, Search as SearchIcon, LayoutGrid, List } from 'lucide-react';
-import { useExhibitors } from './hooks/useSupabaseData';
+import { useExhibitorNavigation } from './contexts/ExhibitorNavigationContext';
+import { fetchExhibitorById, useExhibitors } from './hooks/useSupabaseData';
 import React, { useEffect, useState } from 'react';
-import { Building, User as UserIcon, MapPin as MapPinIcon2, Package, CheckCircle, Upload, FileText, Image, X, ExternalLink, Mail, Phone } from 'lucide-react';
+import { Building, User as UserIcon, MapPin as MapPinIcon2, Package, CheckCircle, Upload, FileText, Image, X, ExternalLink, Mail, Phone, Store, Info } from 'lucide-react';
 import { supabase } from './supabase';
 import { AdSlot } from './components/AdSlot';
+import { ExhibitorCatalogueShop } from './components/ExhibitorCatalogueShop';
+import { CustomerCheckoutModal } from './components/CustomerCheckoutModal';
 import type { Exhibitor as ExhibitorRecord } from './types';
 
 interface FormErrors {
@@ -65,10 +68,18 @@ function buildExhibitorGalleryItems(ex: ExhibitorRecord): { url: string; caption
     return out;
 }
 
+type ExhibitorDetailTab = 'details' | 'catalogue';
+
 const ExhibitorDetailModal: React.FC<{
     ex: ExhibitorRecord;
     onClose: () => void;
 }> = ({ ex, onClose }) => {
+    const [checkoutOpen, setCheckoutOpen] = useState(false);
+    const [tab, setTab] = useState<ExhibitorDetailTab>('details');
+
+    useEffect(() => {
+        setTab('details');
+    }, [ex.id]);
     const heroSrc = exhibitorPreviewImage(ex);
     const galleryItems = buildExhibitorGalleryItems(ex);
     const hasDocs = !!(
@@ -166,7 +177,52 @@ const ExhibitorDetailModal: React.FC<{
                             </div>
                         )}
 
-                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
+                        <div className="shrink-0">
+                            <div
+                                className="grid grid-cols-2 gap-1 rounded-2xl p-1 bg-surface-container-high/80 border border-outline-variant/25 shadow-inner"
+                                role="tablist"
+                                aria-label="Exhibitor sections"
+                            >
+                                {(
+                                    [
+                                        { id: 'details' as const, label: 'Exhibitor details', icon: <Info className="h-4 w-4" /> },
+                                        { id: 'catalogue' as const, label: 'Catalogue', icon: <Store className="h-4 w-4" /> },
+                                    ] as const
+                                ).map(({ id, label, icon }) => {
+                                    const selected = tab === id;
+                                    return (
+                                        <button
+                                            key={id}
+                                            type="button"
+                                            role="tab"
+                                            aria-selected={selected}
+                                            aria-controls={`exhibitor-detail-panel-${id}`}
+                                            id={`exhibitor-detail-tab-${id}`}
+                                            onClick={() => setTab(id)}
+                                            className={[
+                                                'flex items-center justify-center gap-2 min-w-0 py-2.5 px-2 rounded-xl font-headline font-semibold text-xs sm:text-sm transition-all duration-200',
+                                                selected
+                                                    ? 'bg-surface-container-lowest text-primary shadow-md ring-1 ring-outline-variant/20'
+                                                    : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-lowest/70',
+                                            ].join(' ')}
+                                        >
+                                            <span className={selected ? 'text-primary' : 'text-on-surface-variant'}>
+                                                {icon}
+                                            </span>
+                                            <span className="truncate">{label}</span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {tab === 'details' && (
+                        <div
+                            id="exhibitor-detail-panel-details"
+                            role="tabpanel"
+                            aria-labelledby="exhibitor-detail-tab-details"
+                            className="grid grid-cols-1 lg:grid-cols-12 gap-3"
+                        >
                             <div className="lg:col-span-5 space-y-3">
                                 <div className="rounded-xl bg-surface-container-low/50 p-3 sm:p-3.5 ghost-border border border-outline-variant/15">
                                     <h3 className="text-xs font-bold font-headline text-primary uppercase tracking-wider mb-2">
@@ -333,9 +389,32 @@ const ExhibitorDetailModal: React.FC<{
                                 )}
                             </div>
                         </div>
+                        )}
+
+                        {tab === 'catalogue' && (
+                            <div
+                                id="exhibitor-detail-panel-catalogue"
+                                role="tabpanel"
+                                aria-labelledby="exhibitor-detail-tab-catalogue"
+                            >
+                                <ExhibitorCatalogueShop
+                                    embedded
+                                    exhibitor={{ id: ex.id, companyName: ex.companyName }}
+                                    onPlaceOrder={() => setCheckoutOpen(true)}
+                                />
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
+
+            {checkoutOpen && (
+                <CustomerCheckoutModal
+                    exhibitorId={ex.id}
+                    exhibitorName={ex.companyName}
+                    onClose={() => setCheckoutOpen(false)}
+                />
+            )}
         </div>
     );
 };
@@ -343,6 +422,7 @@ const ExhibitorDetailModal: React.FC<{
 export const Exhibitor: React.FC = () => {
 
     const { exhibitors, loading: exhibitorsLoading, refetch } = useExhibitors();
+    const { pendingExhibitorId, clearPendingExhibitor } = useExhibitorNavigation();
 
     // Form state
     const [firstName, setFirstName] = useState('');
@@ -379,6 +459,21 @@ export const Exhibitor: React.FC = () => {
         if (showAllExhibitorsView) setShowAllExhibitorsView(false);
         setShowFileModal(true);
     };
+
+    useEffect(() => {
+        if (!pendingExhibitorId) return;
+        let cancelled = false;
+        (async () => {
+            const id = pendingExhibitorId;
+            const fromList = exhibitors.find((x) => x.id === id);
+            const ex = fromList ?? (await fetchExhibitorById(id));
+            if (!cancelled && ex) openExhibitorProfile(ex);
+            if (!cancelled) clearPendingExhibitor();
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [pendingExhibitorId, exhibitors, clearPendingExhibitor]);
 
     useEffect(() => {
         const loadCategoryOptions = async () => {

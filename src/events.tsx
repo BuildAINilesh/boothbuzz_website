@@ -5,6 +5,7 @@ import { EventRegistration } from './components/EventRegistration';
 import { EventDetailModal } from './components/EventDetailModal';
 import { AdSlot } from './components/AdSlot';
 import type { Event } from './types';
+import { useExhibitorNavigation } from './contexts/ExhibitorNavigationContext';
 
 const defaultImage =
   'https://images.pexels.com/photos/1099816/pexels-photo-1099816.jpeg?auto=compress&cs=tinysrgb&w=800&fit=crop';
@@ -138,6 +139,7 @@ function EventStallBookingBlock({
 }
 
 export const Events: React.FC = () => {
+  const { openExhibitorById } = useExhibitorNavigation();
   const { events, loading: eventsLoading } = useEvents('upcoming');
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [showRegistration, setShowRegistration] = useState(false);
@@ -459,6 +461,10 @@ export const Events: React.FC = () => {
           isOpen={showDetailModal}
           onClose={closeDetail}
           onRegister={registerFromDetail}
+          onExhibitorClick={(exhibitorId) => {
+            closeDetail();
+            window.setTimeout(() => openExhibitorById(exhibitorId), 0);
+          }}
         />
       )}
       {selectedEvent && showRegistration && (

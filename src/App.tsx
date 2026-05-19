@@ -5,9 +5,12 @@ import Gallery from './gallery';
 import { Events } from './events';
 import { Exhibitor } from './exhibitor';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { CartProvider } from './contexts/CartContext';
+import { ExhibitorNavigationProvider } from './contexts/ExhibitorNavigationContext';
 import { BannerCarousel } from './components/BannerCarousel';
 import { AdSlot } from './components/AdSlot';
 import { ExhibitorDashboard } from './components/ExhibitorDashboard';
+import { ExhibitorDashboardNav } from './components/ExhibitorDashboardNav';
 import { ExhibitorPortal } from './components/ExhibitorPortal';
 import { AuthModal } from './components/AuthModal';
 import { supabase } from './supabase';
@@ -174,13 +177,7 @@ function AppContent() {
               </div>
               <div className="flex items-center gap-2">
                 {exhibitorLoggedIn ? (
-                  <button
-                    type="button"
-                    onClick={() => scrollToSection('dashboard')}
-                    className="hidden sm:inline-flex items-center rounded-xl bg-primary px-4 py-2 text-sm font-semibold font-headline text-on-primary shadow-lg shadow-primary/20 hover:opacity-90 transition-opacity"
-                  >
-                    My Dashboard
-                  </button>
+                  <ExhibitorDashboardNav variant="desktop" onNavigate={() => setIsMenuOpen(false)} />
                 ) : (
                   <>
                     <button
@@ -227,13 +224,10 @@ function AppContent() {
                 </button>
               ))}
               {exhibitorLoggedIn ? (
-                <button
-                  type="button"
-                  onClick={() => scrollToSection('dashboard')}
-                  className="mt-2 w-full rounded-xl bg-primary py-2.5 text-sm font-semibold text-on-primary"
-                >
-                  My Dashboard
-                </button>
+                <ExhibitorDashboardNav
+                  variant="mobile"
+                  onNavigate={() => setIsMenuOpen(false)}
+                />
               ) : (
                 <>
                   <button
@@ -440,7 +434,11 @@ function AppContent() {
 function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <CartProvider>
+        <ExhibitorNavigationProvider>
+          <AppContent />
+        </ExhibitorNavigationProvider>
+      </CartProvider>
     </AuthProvider>
   );
 }

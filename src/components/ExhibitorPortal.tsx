@@ -2,10 +2,12 @@ import React, { useMemo, useState } from 'react';
 import { Calendar, Clock, LayoutGrid, LogOut, MapPin, User } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { AuthModal } from './AuthModal';
+import { ExhibitorCatalogueSection } from './ExhibitorCatalogueSection';
+import { ExhibitorCustomerOrdersSection } from './ExhibitorCustomerOrdersSection';
 import { supabase } from '../supabase';
 import { useEvents, useMyExhibitorProfile, useMyRegistrations } from '../hooks/useSupabaseData';
 
-type PortalTab = 'profile' | 'registrations' | 'events';
+type PortalTab = 'profile' | 'orders' | 'registrations' | 'events';
 
 const DEFAULT_EVENT_IMAGE =
   'https://images.pexels.com/photos/1099816/pexels-photo-1099816.jpeg?auto=compress&cs=tinysrgb&w=800&fit=crop';
@@ -97,6 +99,13 @@ export const ExhibitorPortal: React.FC = () => {
     const onSelectTab = (event: Event) => {
       const custom = event as CustomEvent<string>;
       if (custom.detail === 'profile') setTab('profile');
+      if (custom.detail === 'catalogue') {
+        setTab('profile');
+        window.setTimeout(() => {
+          document.getElementById('exhibitor-portal-catalogue')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 250);
+      }
+      if (custom.detail === 'orders') setTab('orders');
       if (custom.detail === 'registrations') setTab('registrations');
       if (custom.detail === 'events') setTab('events');
     };
@@ -305,7 +314,8 @@ export const ExhibitorPortal: React.FC = () => {
         <div className="px-6 md:px-8 pt-4">
           <div className="inline-flex rounded-xl border border-outline-variant/20 bg-surface-container-low p-1">
             {([
-              ['profile', 'Profile'],
+              ['profile', 'Profile & Catalogue'],
+              ['orders', 'Customer Orders'],
               ['registrations', 'My Registrations'],
               ['events', 'Register for Events'],
             ] as [PortalTab, string][]).map(([id, label]) => (
@@ -393,7 +403,20 @@ export const ExhibitorPortal: React.FC = () => {
                     {saveMsg && <span className="text-sm text-emerald-700">{saveMsg}</span>}
                     {saveErr && <span className="text-sm text-red-600">{saveErr}</span>}
                   </div>
+                  <div id="exhibitor-portal-catalogue" className="scroll-mt-28 pt-2">
+                    <ExhibitorCatalogueSection exhibitorId={effectiveProfile.id} />
+                  </div>
                 </div>
+              )}
+            </div>
+          )}
+
+          {tab === 'orders' && (
+            <div>
+              {!effectiveProfile ? (
+                <p className="text-on-surface-variant">Sign in to view orders.</p>
+              ) : (
+                <ExhibitorCustomerOrdersSection exhibitorId={effectiveProfile.id} />
               )}
             </div>
           )}

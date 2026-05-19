@@ -83,10 +83,12 @@ export interface EventRegistration {
 /** event_registrations row joined with exhibitor for public event detail. */
 export interface EventRegistrationWithExhibitor {
   id: string;
+  exhibitorId: string;
   boothSize: string | null;
   status: string;
   registrationDate: string;
   exhibitor: {
+    id: string;
     companyName: string;
     contactPerson?: string | null;
     email?: string | null;
@@ -185,6 +187,89 @@ export interface MyEventRegistration {
     created_at: string;
     updated_at: string;
   }
+
+/** Sellable product in an exhibitor's catalogue (DB: exhibitor_catalogue_products). */
+export interface ExhibitorCatalogueProduct {
+  id: string;
+  exhibitorId: string;
+  name: string;
+  size?: string | null;
+  price: number;
+  compareAtPrice?: number | null;
+  description?: string | null;
+  imageUrls: string[];
+  sku?: string | null;
+  category?: string | null;
+  unit?: string | null;
+  stockQuantity?: number | null;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type FulfillmentType = 'exhibition_pickup' | 'home_delivery';
+
+export interface CartLineItem {
+  productId: string;
+  exhibitorId: string;
+  exhibitorName: string;
+  name: string;
+  size?: string | null;
+  unit?: string | null;
+  price: number;
+  imageUrl?: string | null;
+  quantity: number;
+}
+
+export interface CustomerOrderInput {
+  exhibitorId: string;
+  customerName: string;
+  customerEmail?: string;
+  customerPhone: string;
+  fulfillmentType: FulfillmentType;
+  deliveryAddress?: string;
+  deliveryCity?: string;
+  deliveryState?: string;
+  deliveryPincode?: string;
+  deliveryNotes?: string;
+  customerNotes?: string;
+  items: CartLineItem[];
+}
+
+export interface ExhibitorCustomerOrderItem {
+  id: string;
+  orderId: string;
+  productId?: string | null;
+  productName: string;
+  productSize?: string | null;
+  unit?: string | null;
+  unitPrice: number;
+  quantity: number;
+  lineTotal: number;
+}
+
+export interface ExhibitorCustomerOrder {
+  id: string;
+  exhibitorId: string;
+  orderNumber: string;
+  customerName: string;
+  customerEmail?: string | null;
+  customerPhone: string;
+  fulfillmentType: FulfillmentType;
+  deliveryAddress?: string | null;
+  deliveryCity?: string | null;
+  deliveryState?: string | null;
+  deliveryPincode?: string | null;
+  deliveryNotes?: string | null;
+  subtotal: number;
+  total: number;
+  paymentStatus: string;
+  orderStatus: string;
+  customerNotes?: string | null;
+  createdAt: string;
+  items?: ExhibitorCustomerOrderItem[];
+}
   
   export interface Society {
     id: string;
