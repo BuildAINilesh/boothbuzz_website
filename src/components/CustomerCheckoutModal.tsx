@@ -3,6 +3,7 @@ import { X, Minus, Plus, CreditCard, CheckCircle } from 'lucide-react';
 import type { FulfillmentType } from '../types';
 import { useCart } from '../contexts/CartContext';
 import { placeCustomerOrder } from '../hooks/useSupabaseData';
+import { LegalConsentCheckbox } from './LegalConsentCheckbox';
 
 const formatInr = (n: number) =>
   new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n);
@@ -28,6 +29,7 @@ export const CustomerCheckoutModal: React.FC<{
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<{ orderNumber: string } | null>(null);
+  const [agreeToLegal, setAgreeToLegal] = useState(false);
 
   const cartMismatch = cartExhibitorId !== exhibitorId || items.length === 0;
 
@@ -48,6 +50,11 @@ export const CustomerCheckoutModal: React.FC<{
       }
     }
 
+    if (!agreeToLegal) {
+      setError('Please accept the Terms of Use and Privacy Policy to continue.');
+      return;
+    }
+
     setSubmitting(true);
     try {
       const result = await placeCustomerOrder({
@@ -65,6 +72,7 @@ export const CustomerCheckoutModal: React.FC<{
         items,
       });
       clearCart();
+      setAgreeToLegal(false);
       setSuccess({ orderNumber: result.orderNumber });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not place order. Please try again.');
@@ -271,10 +279,15 @@ export const CustomerCheckoutModal: React.FC<{
         </div>
 
         {!success && !cartMismatch && (
-          <div className="p-4 border-t border-outline-variant/15 shrink-0">
+          <div className="p-4 border-t border-outline-variant/15 shrink-0 space-y-3">
+            <LegalConsentCheckbox
+              id="checkout-agree-legal"
+              checked={agreeToLegal}
+              onChange={setAgreeToLegal}
+            />
             <button
               type="button"
-              disabled={submitting}
+              disabled={submitting || !agreeToLegal}
               onClick={handlePayAndPlace}
               className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary py-3 text-on-primary font-semibold disabled:opacity-60"
             >

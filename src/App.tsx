@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Phone, Mail, MapPin, Menu, X, Calendar, Users, LayoutGrid, Megaphone } from 'lucide-react';
 import { useUsers, useEvents, useVenues, useVendors, useExhibitors } from './hooks/useSupabaseData';
 import Gallery from './gallery';
@@ -414,6 +415,14 @@ function AppContent() {
           <footer className="border-t border-slate-200 bg-indigo-50/20 py-6">
             <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center gap-4">
               <span className="font-medium text-indigo-600">BoothBuzz</span>
+              <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1 text-sm">
+                <Link to="/privacy" className="text-slate-600 hover:text-indigo-600 font-medium">
+                  Privacy Policy
+                </Link>
+                <Link to="/terms" className="text-slate-600 hover:text-indigo-600 font-medium">
+                  Terms of Use
+                </Link>
+              </div>
               <span className="text-sm text-slate-500">© {new Date().getFullYear()} BoothBuzz. All rights reserved.</span>
             </div>
           </footer>

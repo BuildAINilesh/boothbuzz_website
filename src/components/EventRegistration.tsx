@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, CheckCircle, Mail, Phone, Building, MapPin, Calendar, Clock, Users, Tag } from 'lucide-react';
 import { supabase } from '../supabase';
 import { AuthModal } from './AuthModal';
+import { LegalConsentCheckbox } from './LegalConsentCheckbox';
 import type { Event } from '../types';
 
 const DEFAULT_EVENT_IMAGE = 'https://images.pexels.com/photos/1099816/pexels-photo-1099816.jpeg?auto=compress&cs=tinysrgb&w=1200&h=600&fit=crop';
@@ -502,19 +503,14 @@ export const EventRegistration: React.FC<EventRegistrationProps> = ({
                     </select>
                   </div> */}
 
-                  <div className="flex items-start space-x-3">
-                    <input
-                      type="checkbox"
-                      id="agreeToTerms"
-                      checked={registrationData.agreeToTerms}
-                      onChange={(e) => setRegistrationData(prev => ({ ...prev, agreeToTerms: e.target.checked }))}
-                      required
-                      className="mt-1 h-4 w-4 text-slate-600 focus:ring-slate-300 border-slate-300 rounded"
-                    />
-                    <label htmlFor="agreeToTerms" className="text-sm text-slate-700">
-                      I agree to the event terms and conditions and confirm my registration for this event.
-                    </label>
-                  </div>
+                  <LegalConsentCheckbox
+                    id="agreeToTerms"
+                    checked={registrationData.agreeToTerms}
+                    onChange={(checked) =>
+                      setRegistrationData((prev) => ({ ...prev, agreeToTerms: checked }))
+                    }
+                    prefix="I confirm my interest in this event and"
+                  />
 
                   {error && (
                     <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">

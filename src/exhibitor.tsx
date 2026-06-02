@@ -7,6 +7,7 @@ import { supabase } from './supabase';
 import { AdSlot } from './components/AdSlot';
 import { ExhibitorCatalogueShop } from './components/ExhibitorCatalogueShop';
 import { CustomerCheckoutModal } from './components/CustomerCheckoutModal';
+import { LegalConsentCheckbox } from './components/LegalConsentCheckbox';
 import type { Exhibitor as ExhibitorRecord } from './types';
 
 interface FormErrors {
@@ -437,6 +438,7 @@ export const Exhibitor: React.FC = () => {
     const [loadingCategoryOptions, setLoadingCategoryOptions] = useState(true);
     const [companyDescription, setDescription] = useState('');
     const [submitting, setSubmitting] = useState(false);
+    const [agreeToLegal, setAgreeToLegal] = useState(false);
     const [successMsg, setSuccessMsg] = useState('');
     const [errorMsg, setErrorMsg] = useState('');
     
@@ -1823,12 +1825,18 @@ export const Exhibitor: React.FC = () => {
                             </div>
                         )}
                 */}
+                <LegalConsentCheckbox
+                  id="exhibitor-reg-agree-legal"
+                  checked={agreeToLegal}
+                  onChange={setAgreeToLegal}
+                  className="pt-2"
+                />
                 <button
                   type="submit"
-                            disabled={submitting}
-                            className="w-full bg-primary text-on-primary py-4 rounded-2xl font-bold font-headline text-base shadow-lg shadow-primary/20 hover:opacity-90 transition-opacity disabled:opacity-50"
+                  disabled={submitting || !agreeToLegal}
+                  className="w-full bg-primary text-on-primary py-4 rounded-2xl font-bold font-headline text-base shadow-lg shadow-primary/20 hover:opacity-90 transition-opacity disabled:opacity-50"
                 >
-                            {submitting ? 'Submitting...' : 'Submit registration'}
+                  {submitting ? 'Submitting...' : 'Submit registration'}
                 </button>
               </form>
                     </div>
